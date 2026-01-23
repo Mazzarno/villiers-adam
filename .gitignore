@@ -1,0 +1,14 @@
+node_modules
+.env
+.env.*
+dist
+.next
+.turbo
+.cache
+coverage
+*.log
+.DS_Store
+*.pem
+*.key
+*.local
+*.tmp

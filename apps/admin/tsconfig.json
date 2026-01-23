@@ -1,0 +1,7 @@
+{
+  "extends": "../../packages/config/typescript/next.json",
+  "compilerOptions": {
+    "rootDir": "src"
+  },
+  "include": ["src", "next-env.d.ts"]
+}

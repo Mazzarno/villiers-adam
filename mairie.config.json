@@ -1,0 +1,100 @@
+{
+  "$schema": "./mairie.config.schema.json",
+  "_comment": "Configuration obligatoire de la commune - utilisée par toutes les applications",
+
+  "commune": {
+    "nom": "Villiers-Adam",
+    "nomComplet": "Mairie de Villiers-Adam",
+    "codeInsee": "95680",
+    "codePostal": "95840",
+    "departement": {
+      "code": "95",
+      "nom": "Val-d'Oise"
+    },
+    "region": {
+      "code": "11",
+      "nom": "Île-de-France"
+    },
+    "population": 950,
+    "intercommunalite": {
+      "nom": "Communauté de communes Carnelle Pays-de-France",
+      "siren": "249500513"
+    }
+  },
+
+  "mairie": {
+    "adresse": {
+      "ligne1": "1 Place de la Mairie",
+      "ligne2": null,
+      "codePostal": "95840",
+      "ville": "Villiers-Adam",
+      "pays": "France"
+    },
+    "coordonnees": {
+      "latitude": 49.0833,
+      "longitude": 2.3833
+    },
+    "siret": "21950680600019",
+    "contact": {
+      "telephone": "01 34 08 50 50",
+      "email": "mairie@villiers-adam.fr",
+      "urlSite": "https://www.villiers-adam.fr"
+    },
+    "horaires": {
+      "lundi": "9h00 - 12h00",
+      "mardi": "9h00 - 12h00 / 14h00 - 17h00",
+      "mercredi": "9h00 - 12h00",
+      "jeudi": "9h00 - 12h00 / 14h00 - 17h00",
+      "vendredi": "9h00 - 12h00",
+      "samedi": "Fermé",
+      "dimanche": "Fermé"
+    }
+  },
+
+  "urls": {
+    "production": "https://www.villiers-adam.fr",
+    "admin": "https://admin.villiers-adam.fr",
+    "api": "https://api.villiers-adam.fr"
+  },
+
+  "legal": {
+    "mentionsLegales": {
+      "editeur": "Mairie de Villiers-Adam",
+      "directeurPublication": "Le Maire",
+      "hebergeur": {
+        "nom": "Scaleway",
+        "adresse": "8 rue de la Ville l'Évêque, 75008 Paris",
+        "url": "https://www.scaleway.com"
+      }
+    },
+    "rgpd": {
+      "responsableTraitement": "Mairie de Villiers-Adam",
+      "dpo": {
+        "email": "dpo@villiers-adam.fr"
+      }
+    }
+  },
+
+  "branding": {
+    "couleurs": {
+      "primaire": "#1e40af",
+      "secondaire": "#3b82f6",
+      "accent": "#10b981"
+    },
+    "slogan": null
+  },
+
+  "reseauxSociaux": {
+    "facebook": null,
+    "twitter": null,
+    "instagram": null,
+    "linkedin": null,
+    "youtube": null
+  },
+
+  "meta": {
+    "version": "1.0.0",
+    "createdAt": "2024-01-21",
+    "updatedAt": "2024-01-21"
+  }
+}

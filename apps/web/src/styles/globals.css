@@ -1,0 +1,179 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 213 56% 24%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 45 76% 47%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 100 52% 20%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 213 56% 24%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 45 76% 57%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 100 52% 30%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 48%;
+  }
+
+  /* Mode Senior */
+  .senior-mode {
+    --font-size-base: 1.125rem;
+    --line-height-base: 1.8;
+  }
+
+  .senior-mode body {
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-base);
+  }
+
+  .senior-mode h1 { font-size: 2.5rem !important; }
+  .senior-mode h2 { font-size: 2rem !important; }
+  .senior-mode h3 { font-size: 1.75rem !important; }
+  .senior-mode p, .senior-mode li { font-size: 1.25rem !important; }
+  .senior-mode button, .senior-mode a { font-size: 1.125rem !important; }
+
+  /* Mode Dyslexique */
+  .dyslexic-mode {
+    font-family: 'OpenDyslexic', sans-serif !important;
+    letter-spacing: 0.05em;
+    word-spacing: 0.1em;
+  }
+
+  .dyslexic-mode * {
+    font-family: inherit !important;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* Skip to main content */
+  .skip-link {
+    @apply absolute -top-full left-4 z-[9999] bg-primary text-primary-foreground px-4 py-2 rounded-md transition-all focus:top-4;
+  }
+}
+
+@layer components {
+  /* Prose pour le contenu */
+  .prose-villiers {
+    @apply prose prose-slate max-w-none;
+    @apply prose-headings:font-heading prose-headings:text-foreground;
+    @apply prose-p:text-foreground/90 prose-p:leading-relaxed;
+    @apply prose-a:text-primary prose-a:no-underline hover:prose-a:underline;
+    @apply prose-strong:text-foreground;
+    @apply prose-img:rounded-lg;
+  }
+
+  .prose-villiers.dark {
+    @apply prose-invert;
+  }
+
+  /* Flash info banner */
+  .flash-banner {
+    @apply bg-destructive text-destructive-foreground py-2;
+  }
+
+  .flash-banner-content {
+    @apply flex items-center gap-4 whitespace-nowrap;
+    animation: marquee 30s linear infinite;
+  }
+
+  .flash-banner:hover .flash-banner-content {
+    animation-play-state: paused;
+  }
+
+  /* Card hover effect */
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+  }
+}
+
+@layer utilities {
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
+  /* Focus visible */
+  .focus-ring {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  }
+
+  /* Scrollbar */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted)) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--muted-foreground) / 0.3);
+    border-radius: 3px;
+  }
+}
+
+/* Leaflet override */
+.leaflet-container {
+  font-family: inherit;
+}
+
+.leaflet-popup-content-wrapper {
+  @apply rounded-lg shadow-lg;
+}
+
+.leaflet-popup-content {
+  @apply m-0 p-4;
+}

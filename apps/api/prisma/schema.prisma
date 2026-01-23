@@ -1,0 +1,524 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN_MAIRIE
+  AGENT
+  CONTRIBUTOR
+  READER
+}
+
+enum ContentStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum AgendaType {
+  COMMUNAL
+  ASSOCIATIF
+  DECHETS
+}
+
+enum DirectoryType {
+  ASSOCIATION
+  ENTERPRISE
+  COMMERCE
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+  DOCUMENT
+}
+
+enum ReservationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum FormType {
+  CONTACT
+  SIGNALEMENT
+}
+
+enum FormStatus {
+  NEW
+  IN_PROGRESS
+  CLOSED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  PUBLISH
+  ARCHIVE
+  RESTORE
+  EXPORT
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         UserRole @default(READER)
+  mfaEnabled   Boolean  @default(false)
+  mfaSecret    String?
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  createdPages           Page[]           @relation("PageCreatedBy")
+  updatedPages           Page[]           @relation("PageUpdatedBy")
+  createdArticles        Article[]        @relation("ArticleCreatedBy")
+  updatedArticles        Article[]        @relation("ArticleUpdatedBy")
+  createdEvents          Event[]          @relation("EventCreatedBy")
+  updatedEvents          Event[]          @relation("EventUpdatedBy")
+  createdAgendaItems     AgendaItem[]     @relation("AgendaCreatedBy")
+  updatedAgendaItems     AgendaItem[]     @relation("AgendaUpdatedBy")
+  createdDirectoryEntries DirectoryEntry[] @relation("DirectoryCreatedBy")
+  updatedDirectoryEntries DirectoryEntry[] @relation("DirectoryUpdatedBy")
+  createdProcedures      Procedure[]      @relation("ProcedureCreatedBy")
+  updatedProcedures      Procedure[]      @relation("ProcedureUpdatedBy")
+  reservationsHandled    Reservation[]    @relation("ReservationHandledBy")
+  createdMedia           Media[]          @relation("MediaCreatedBy")
+  sessions               Session[]
+  passwordResetTokens    PasswordResetToken[]
+
+  auditLogs AuditLog[]
+  versions  Version[]
+
+  @@index([email])
+  @@index([role])
+}
+
+model Page {
+  id           String        @id @default(cuid())
+  title        String
+  slug         String        @unique
+  summary      String?
+  content      Json
+  status       ContentStatus @default(DRAFT)
+  publishedAt  DateTime?
+  scheduledAt  DateTime?
+  coverMediaId String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  createdById  String
+  updatedById  String?
+
+  createdBy User   @relation("PageCreatedBy", fields: [createdById], references: [id])
+  updatedBy User?  @relation("PageUpdatedBy", fields: [updatedById], references: [id])
+  coverMedia Media? @relation("PageCoverMedia", fields: [coverMediaId], references: [id])
+  media      PageMedia[]
+
+  @@index([status, publishedAt])
+  @@index([scheduledAt])
+}
+
+model Article {
+  id           String        @id @default(cuid())
+  title        String
+  slug         String        @unique
+  summary      String?
+  content      Json
+  isFlash      Boolean       @default(false)
+  status       ContentStatus @default(DRAFT)
+  publishedAt  DateTime?
+  scheduledAt  DateTime?
+  coverMediaId String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  createdById  String
+  updatedById  String?
+
+  createdBy User   @relation("ArticleCreatedBy", fields: [createdById], references: [id])
+  updatedBy User?  @relation("ArticleUpdatedBy", fields: [updatedById], references: [id])
+  coverMedia Media? @relation("ArticleCoverMedia", fields: [coverMediaId], references: [id])
+  media      ArticleMedia[]
+
+  @@index([status, publishedAt])
+  @@index([scheduledAt])
+}
+
+model Event {
+  id           String        @id @default(cuid())
+  title        String
+  slug         String        @unique
+  summary      String?
+  content      Json
+  locationName String?
+  address      String?
+  latitude     Float?
+  longitude    Float?
+  startsAt     DateTime
+  endsAt       DateTime?
+  status       ContentStatus @default(DRAFT)
+  publishedAt  DateTime?
+  scheduledAt  DateTime?
+  coverMediaId String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  createdById  String
+  updatedById  String?
+
+  createdBy User   @relation("EventCreatedBy", fields: [createdById], references: [id])
+  updatedBy User?  @relation("EventUpdatedBy", fields: [updatedById], references: [id])
+  coverMedia Media? @relation("EventCoverMedia", fields: [coverMediaId], references: [id])
+  media      EventMedia[]
+
+  @@index([status, publishedAt])
+  @@index([scheduledAt])
+  @@index([startsAt])
+}
+
+model AgendaItem {
+  id           String        @id @default(cuid())
+  title        String
+  description  String?
+  agendaType   AgendaType
+  startsAt     DateTime
+  endsAt       DateTime?
+  isAllDay     Boolean       @default(false)
+  recurrenceRule String?
+  status       ContentStatus @default(DRAFT)
+  publishedAt  DateTime?
+  scheduledAt  DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  createdById  String
+  updatedById  String?
+
+  createdBy User  @relation("AgendaCreatedBy", fields: [createdById], references: [id])
+  updatedBy User? @relation("AgendaUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([agendaType])
+  @@index([startsAt])
+  @@index([status, publishedAt])
+}
+
+model DirectoryEntry {
+  id           String        @id @default(cuid())
+  name         String
+  slug         String        @unique
+  type         DirectoryType
+  description  String?
+  phone        String?
+  email        String?
+  website      String?
+  addressLine1 String?
+  addressLine2 String?
+  postalCode   String?
+  city         String?
+  country      String?
+  latitude     Float?
+  longitude    Float?
+  openingHours Json?
+  status       ContentStatus @default(DRAFT)
+  publishedAt  DateTime?
+  scheduledAt  DateTime?
+  coverMediaId String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  createdById  String
+  updatedById  String?
+
+  createdBy User   @relation("DirectoryCreatedBy", fields: [createdById], references: [id])
+  updatedBy User?  @relation("DirectoryUpdatedBy", fields: [updatedById], references: [id])
+  coverMedia Media? @relation("DirectoryCoverMedia", fields: [coverMediaId], references: [id])
+  media      DirectoryEntryMedia[]
+
+  @@index([type])
+  @@index([status, publishedAt])
+  @@index([scheduledAt])
+}
+
+model Procedure {
+  id           String        @id @default(cuid())
+  title        String
+  slug         String        @unique
+  summary      String?
+  content      Json
+  steps        Json?
+  externalUrl  String?
+  status       ContentStatus @default(DRAFT)
+  publishedAt  DateTime?
+  scheduledAt  DateTime?
+  coverMediaId String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  createdById  String
+  updatedById  String?
+
+  createdBy User   @relation("ProcedureCreatedBy", fields: [createdById], references: [id])
+  updatedBy User?  @relation("ProcedureUpdatedBy", fields: [updatedById], references: [id])
+  coverMedia Media? @relation("ProcedureCoverMedia", fields: [coverMediaId], references: [id])
+  media      ProcedureMedia[]
+
+  @@index([status, publishedAt])
+  @@index([scheduledAt])
+}
+
+model Media {
+  id         String    @id @default(cuid())
+  title      String?
+  filename   String
+  mimeType   String
+  size       Int
+  url        String
+  storageKey String   @unique
+  bucket     String
+  type       MediaType
+  width      Int?
+  height     Int?
+  duration   Int?
+  createdAt  DateTime @default(now())
+  createdById String?
+
+  createdBy User? @relation("MediaCreatedBy", fields: [createdById], references: [id])
+
+  pageCovers      Page[]           @relation("PageCoverMedia")
+  articleCovers   Article[]        @relation("ArticleCoverMedia")
+  eventCovers     Event[]          @relation("EventCoverMedia")
+  procedureCovers Procedure[]      @relation("ProcedureCoverMedia")
+  directoryCovers DirectoryEntry[] @relation("DirectoryCoverMedia")
+
+  pageMedia       PageMedia[]
+  articleMedia    ArticleMedia[]
+  eventMedia      EventMedia[]
+  procedureMedia  ProcedureMedia[]
+  directoryMedia  DirectoryEntryMedia[]
+}
+
+model PageMedia {
+  pageId  String
+  mediaId String
+  order   Int @default(0)
+
+  page  Page  @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([pageId, mediaId])
+}
+
+model ArticleMedia {
+  articleId String
+  mediaId   String
+  order     Int @default(0)
+
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  media   Media   @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([articleId, mediaId])
+}
+
+model EventMedia {
+  eventId String
+  mediaId String
+  order   Int @default(0)
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, mediaId])
+}
+
+model ProcedureMedia {
+  procedureId String
+  mediaId     String
+  order       Int @default(0)
+
+  procedure Procedure @relation(fields: [procedureId], references: [id], onDelete: Cascade)
+  media     Media     @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([procedureId, mediaId])
+}
+
+model DirectoryEntryMedia {
+  directoryEntryId String
+  mediaId          String
+  order            Int @default(0)
+
+  directoryEntry DirectoryEntry @relation(fields: [directoryEntryId], references: [id], onDelete: Cascade)
+  media          Media          @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([directoryEntryId, mediaId])
+}
+
+model Room {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  location    String?
+  capacity    Int?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  reservations Reservation[]
+}
+
+model Reservation {
+  id            String            @id @default(cuid())
+  roomId        String
+  status        ReservationStatus @default(PENDING)
+  startsAt      DateTime
+  endsAt        DateTime
+  requesterName String
+  requesterEmail String
+  requesterPhone String?
+  notes         String?
+  handledById   String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  room       Room  @relation(fields: [roomId], references: [id])
+  handledBy  User? @relation("ReservationHandledBy", fields: [handledById], references: [id])
+
+  @@index([status])
+  @@index([startsAt])
+}
+
+model FormSubmission {
+  id         String     @id @default(cuid())
+  type       FormType
+  status     FormStatus @default(NEW)
+  subject    String?
+  message    String
+  name       String?
+  email      String?
+  phone      String?
+  data       Json?
+  honeypot   String?
+  isBot      Boolean    @default(false)
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([isBot])
+}
+
+model NewsletterSubscription {
+  id              String   @id @default(cuid())
+  email           String   @unique
+  confirmationToken String?
+  confirmedAt     DateTime?
+  unsubscribedAt  DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  topics NewsletterSubscriptionTopic[]
+}
+
+model NewsletterTopic {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subscriptions NewsletterSubscriptionTopic[]
+}
+
+model NewsletterSubscriptionTopic {
+  subscriptionId String
+  topicId        String
+
+  subscription NewsletterSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  topic        NewsletterTopic        @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@id([subscriptionId, topicId])
+}
+
+model Settings {
+  id            String   @id
+  siteName      String
+  branding      Json
+  accessibility Json
+  contactEmail  String?
+  contactPhone  String?
+  address       Json?
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+}
+
+model Version {
+  id           String   @id @default(cuid())
+  entityType   String
+  entityId     String
+  versionNumber Int
+  snapshot     Json
+  createdAt    DateTime @default(now())
+  createdById  String
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([entityType, entityId])
+}
+
+model AuditLog {
+  id        String      @id @default(cuid())
+  action    AuditAction
+  entity    String?
+  entityId  String?
+  metadata  Json?
+  ip        String?
+  userAgent String?
+  createdAt DateTime    @default(now())
+  userId    String
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([entity, entityId])
+}
+
+model Session {
+  id               String   @id @default(cuid())
+  userId           String
+  refreshTokenHash String   @unique
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
