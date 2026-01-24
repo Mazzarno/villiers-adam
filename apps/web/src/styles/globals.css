@@ -1,51 +1,100 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap');
+
+/* Police OpenDyslexic pour le mode dyslexie */
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Bold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'OpenDyslexic';
+  src: url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Italic.woff') format('woff');
+  font-weight: 400;
+  font-style: italic;
+  font-display: swap;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    /* Fond crème chaleureux (remplace blanc pur) */
+    --background: 40 33% 98%;
+    --foreground: 213 56% 16%;
+    --card: 40 33% 99%;
+    --card-foreground: 213 56% 16%;
+    --popover: 40 33% 99%;
+    --popover-foreground: 213 56% 16%;
     --primary: 213 56% 24%;
-    --primary-foreground: 210 40% 98%;
+    --primary-foreground: 40 33% 98%;
     --secondary: 45 76% 47%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --secondary-foreground: 213 56% 16%;
+    --muted: 40 20% 93%;
+    --muted-foreground: 213 20% 46%;
     --accent: 100 52% 20%;
-    --accent-foreground: 210 40% 98%;
+    --accent-foreground: 40 33% 98%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
+    --destructive-foreground: 40 33% 98%;
+    --border: 40 20% 88%;
+    --input: 40 20% 88%;
     --ring: 213 56% 24%;
-    --radius: 0.5rem;
+    --radius: 0.625rem;
+
+    /* Couleurs identitaires Villiers-Adam (mode clair) */
+    --villiers-blue: #1e3a5f;
+    --villiers-blue-light: #2d4a6f;
+    --villiers-gold: #c9a227;
+    --villiers-gold-soft: #d4b44a;
+    --villiers-green: #2d5016;
+    --villiers-green-light: #3d6b1f;
+    --villiers-cream: #FAF8F5;
+    --villiers-stone: #E8E4DD;
+    --villiers-slate: #3D4852;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* Couleurs identitaires Villiers-Adam (mode sombre - plus claires pour contraste) */
+    --villiers-blue: #4a7ab0;
+    --villiers-blue-light: #6b9ad0;
+    --villiers-gold: #e0b830;
+    --villiers-gold-soft: #f0c850;
+    --villiers-green: #5a9f30;
+    --villiers-green-light: #70b545;
+    --villiers-cream: #1a1a1a;
+    --villiers-stone: #252525;
+    --villiers-slate: #9ca3af;
+    --background: 213 56% 8%;
+    --foreground: 40 33% 96%;
+    --card: 213 56% 10%;
+    --card-foreground: 40 33% 96%;
+    --popover: 213 56% 10%;
+    --popover-foreground: 40 33% 96%;
+    --primary: 213 60% 55%;
+    --primary-foreground: 213 56% 8%;
     --secondary: 45 76% 57%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 100 52% 30%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 224.3 76.3% 48%;
+    --secondary-foreground: 213 56% 8%;
+    --muted: 213 32% 17%;
+    --muted-foreground: 213 20% 65%;
+    --accent: 100 52% 35%;
+    --accent-foreground: 40 33% 96%;
+    --destructive: 0 62.8% 40%;
+    --destructive-foreground: 40 33% 96%;
+    --border: 213 32% 20%;
+    --input: 213 32% 20%;
+    --ring: 213 60% 55%;
   }
 
   /* Mode Senior */
@@ -75,6 +124,58 @@
   .dyslexic-mode * {
     font-family: inherit !important;
   }
+
+  /* Mode Contraste élevé */
+  .high-contrast {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 0%;
+    --primary: 0 0% 0%;
+    --primary-foreground: 0 0% 100%;
+    --muted: 0 0% 95%;
+    --muted-foreground: 0 0% 20%;
+    --border: 0 0% 0%;
+  }
+
+  .high-contrast.dark {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --primary: 0 0% 100%;
+    --primary-foreground: 0 0% 0%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 80%;
+    --border: 0 0% 100%;
+  }
+
+  /* Tailles de texte */
+  .text-size-normal {
+    font-size: 100%;
+  }
+
+  .text-size-large {
+    font-size: 112.5%;
+  }
+
+  .text-size-large h1 { font-size: 2.75rem !important; }
+  .text-size-large h2 { font-size: 2.25rem !important; }
+  .text-size-large h3 { font-size: 1.875rem !important; }
+
+  .text-size-xlarge {
+    font-size: 125%;
+  }
+
+  .text-size-xlarge h1 { font-size: 3rem !important; }
+  .text-size-xlarge h2 { font-size: 2.5rem !important; }
+  .text-size-xlarge h3 { font-size: 2rem !important; }
+
+  /* Réduire les animations */
+  .reduce-motion *,
+  .reduce-motion *::before,
+  .reduce-motion *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @layer base {
@@ -84,6 +185,16 @@
 
   body {
     @apply bg-background text-foreground;
+    font-feature-settings: "liga" 1, "calt" 1;
+  }
+
+  /* Typography base avec Source Serif 4 */
+  html {
+    font-family: var(--font-source-serif), Georgia, serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-fraunces), Georgia, serif;
   }
 
   /* Skip to main content */
@@ -121,10 +232,150 @@
     animation-play-state: paused;
   }
 
-  /* Card hover effect */
+  /* Card hover effect organique */
   .card-hover {
-    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
+    @apply transition-all duration-500 ease-organic;
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
   }
+
+  .card-hover:hover {
+    @apply -translate-y-2;
+    box-shadow: 0 20px 40px rgb(0 0 0 / 0.12);
+  }
+
+  .dark .card-hover {
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+  }
+
+  .dark .card-hover:hover {
+    box-shadow: 0 20px 40px rgb(0 0 0 / 0.4);
+  }
+
+  /* Navigation underline animation */
+  .nav-link {
+    @apply relative;
+  }
+
+  .nav-link::after {
+    content: '';
+    @apply absolute bottom-0 left-1/2 w-0 h-0.5 bg-current transition-all duration-300;
+    transform: translateX(-50%);
+  }
+
+  .nav-link:hover::after {
+    @apply w-full left-0;
+    transform: translateX(0);
+  }
+
+  /* Glassmorphism header */
+  .glass-header {
+    @apply bg-background/80 backdrop-blur-md border-b border-border/50;
+  }
+
+  /* Section avec texture grain */
+  .texture-grain {
+    @apply relative;
+  }
+
+  .texture-grain::before {
+    content: '';
+    @apply absolute inset-0 pointer-events-none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    opacity: 0.03;
+  }
+
+  /* Fond crème avec texture lin */
+  .bg-linen {
+    background-color: var(--villiers-cream);
+    background-image:
+      linear-gradient(90deg, transparent 50%, rgba(0,0,0,0.01) 50%),
+      linear-gradient(rgba(0,0,0,0.01) 50%, transparent 50%);
+    background-size: 4px 4px;
+  }
+
+  .dark .bg-linen {
+    background-color: hsl(var(--background));
+    background-image:
+      linear-gradient(90deg, transparent 50%, rgba(255,255,255,0.01) 50%),
+      linear-gradient(rgba(255,255,255,0.01) 50%, transparent 50%);
+  }
+
+  /* Fond pierre subtil */
+  .bg-stone-texture {
+    background-color: var(--villiers-stone);
+    background-image:
+      radial-gradient(circle at 25% 25%, rgba(255,255,255,0.05) 0%, transparent 50%),
+      radial-gradient(circle at 75% 75%, rgba(0,0,0,0.03) 0%, transparent 50%);
+  }
+
+  .dark .bg-stone-texture {
+    background-color: hsl(var(--muted));
+    background-image:
+      radial-gradient(circle at 25% 25%, rgba(255,255,255,0.03) 0%, transparent 50%),
+      radial-gradient(circle at 75% 75%, rgba(0,0,0,0.1) 0%, transparent 50%);
+  }
+
+  /* Citation style lettre */
+  .quote-decorative {
+    @apply relative pl-8;
+  }
+
+  .quote-decorative::before {
+    content: '"';
+    @apply absolute left-0 top-0 text-6xl font-heading text-villiers-gold/30 leading-none;
+  }
+
+  /* Guillemets décoratifs */
+  .guillemets::before {
+    content: '« ';
+    @apply text-villiers-gold;
+  }
+
+  .guillemets::after {
+    content: ' »';
+    @apply text-villiers-gold;
+  }
+
+  /* Timeline connector */
+  .timeline-line {
+    @apply absolute left-8 top-0 bottom-0 w-px bg-gradient-to-b from-villiers-blue via-villiers-gold to-villiers-green;
+  }
+
+  /* Badge organique */
+  .badge-organic {
+    @apply inline-flex items-center px-3 py-1 text-xs font-medium rounded-organic-sm;
+    @apply bg-villiers-gold/10 text-villiers-slate border border-villiers-gold/20;
+  }
+
+  /* Button organic */
+  .btn-organic {
+    @apply inline-flex items-center justify-center px-6 py-3 font-medium transition-all duration-300 ease-organic;
+    border-radius: 0.5rem 0.75rem 0.625rem 0.875rem;
+  }
+
+  .btn-organic:hover {
+    @apply scale-[1.02];
+    box-shadow: 0 10px 30px rgba(30, 58, 95, 0.15);
+  }
+
+  /* Forme décorative abstraite */
+  .decorative-shape {
+    @apply absolute rounded-full opacity-10;
+    background: linear-gradient(135deg, var(--villiers-blue), var(--villiers-gold));
+  }
+
+  /* Animation reveal pour sections */
+  .reveal-section {
+    @apply opacity-0;
+    animation: reveal-up 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  /* Stagger animation classes */
+  .stagger-1 { animation-delay: 0.1s; }
+  .stagger-2 { animation-delay: 0.2s; }
+  .stagger-3 { animation-delay: 0.3s; }
+  .stagger-4 { animation-delay: 0.4s; }
+  .stagger-5 { animation-delay: 0.5s; }
 }
 
 @layer utilities {
@@ -142,6 +393,11 @@
   /* Focus visible */
   .focus-ring {
     @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  }
+
+  /* Focus visible amélioré avec couleur dorée */
+  .focus-ring-gold {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-villiers-gold focus-visible:ring-offset-2;
   }
 
   /* Scrollbar */
@@ -163,6 +419,48 @@
     background-color: hsl(var(--muted-foreground) / 0.3);
     border-radius: 3px;
   }
+
+  /* Text gradient doré */
+  .text-gradient-gold {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, var(--villiers-gold), var(--villiers-gold-soft));
+  }
+
+  /* Typographie display italic */
+  .display-italic {
+    font-family: var(--font-fraunces), Georgia, serif;
+    font-style: italic;
+    font-variation-settings: "opsz" 144;
+  }
+
+  /* Typographie mono pour données */
+  .font-data {
+    font-family: var(--font-dm-mono), monospace;
+    letter-spacing: 0.02em;
+  }
+
+  /* Effet parallaxe container */
+  .parallax-container {
+    @apply overflow-hidden;
+  }
+
+  .parallax-element {
+    will-change: transform;
+  }
+
+  /* Transition organique */
+  .transition-organic {
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* Ombre douce avec teinte bleu marine */
+  .shadow-villiers {
+    box-shadow: 0 4px 20px rgba(30, 58, 95, 0.1);
+  }
+
+  .shadow-villiers-lg {
+    box-shadow: 0 10px 40px rgba(30, 58, 95, 0.15);
+  }
 }
 
 /* Leaflet override */
@@ -176,4 +474,16 @@
 
 .leaflet-popup-content {
   @apply m-0 p-4;
+}
+
+/* Animation typewriter pour flash banner */
+.typewriter {
+  overflow: hidden;
+  white-space: nowrap;
+  animation: typewriter 3s steps(40) forwards;
+}
+
+.typewriter::after {
+  content: '|';
+  animation: blink 1s step-end infinite;
 }

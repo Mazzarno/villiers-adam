@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter, Forum } from 'next/font/google';
+import { Fraunces, Source_Serif_4, DM_Mono } from 'next/font/google';
 import { Providers } from '@/components/providers';
 import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
@@ -7,16 +7,22 @@ import { SkipLink } from '@/components/layout/skip-link';
 import { Toaster } from 'sonner';
 import '@/styles/globals.css';
 
-const inter = Inter({
+const fraunces = Fraunces({
   subsets: ['latin'],
-  variable: '--font-inter',
+  variable: '--font-fraunces',
   display: 'swap',
 });
 
-const forum = Forum({
-  weight: '400',
+const sourceSerif = Source_Serif_4({
   subsets: ['latin'],
-  variable: '--font-forum',
+  variable: '--font-source-serif',
+  display: 'swap',
+});
+
+const dmMono = DM_Mono({
+  weight: ['300', '400', '500'],
+  subsets: ['latin'],
+  variable: '--font-dm-mono',
   display: 'swap',
 });
 
@@ -77,9 +83,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" suppressHydrationWarning>
-      <body className={`${inter.variable} ${forum.variable} font-sans antialiased`}>
+      <body className={`${fraunces.variable} ${sourceSerif.variable} ${dmMono.variable} font-sans antialiased bg-linen`}>
         <Providers>
-          <div className="flex min-h-screen flex-col">
+          <SkipLink />
+          <div className="flex min-h-screen flex-col texture-grain">
             <Header />
             <main id="main-content" className="flex-1">
               {children}

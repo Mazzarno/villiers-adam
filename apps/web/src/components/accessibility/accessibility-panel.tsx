@@ -1,7 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useTheme } from 'next-themes';
 import {
   Sun,
   Moon,
@@ -10,93 +8,31 @@ import {
   Contrast,
   RotateCcw,
   Check,
+  Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-
-interface AccessibilitySettings {
-  seniorMode: boolean;
-  dyslexicMode: boolean;
-  highContrast: boolean;
-  reducedMotion: boolean;
-  fontSize: 'normal' | 'large' | 'xlarge';
-}
-
-const defaultSettings: AccessibilitySettings = {
-  seniorMode: false,
-  dyslexicMode: false,
-  highContrast: false,
-  reducedMotion: false,
-  fontSize: 'normal',
-};
+import { useAccessibility, useIsMounted, type TextSize } from '@/contexts/accessibility-context';
 
 export function AccessibilityPanel() {
-  const { theme, setTheme } = useTheme();
-  const [settings, setSettings] = useState<AccessibilitySettings>(defaultSettings);
-  const [mounted, setMounted] = useState(false);
+  const {
+    seniorMode,
+    dyslexicMode,
+    highContrast,
+    textSize,
+    reducedMotion,
+    setSeniorMode,
+    setDyslexicMode,
+    setHighContrast,
+    setTextSize,
+    setReducedMotion,
+    resetSettings,
+    theme,
+    setTheme,
+  } = useAccessibility();
 
-  useEffect(() => {
-    setMounted(true);
-    // Charger les préférences sauvegardées
-    const saved = localStorage.getItem('accessibility-settings');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      setSettings(parsed);
-      applySettings(parsed);
-    }
-
-    // Détecter les préférences système
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setSettings((prev) => ({ ...prev, reducedMotion: true }));
-    }
-  }, []);
-
-  const applySettings = (newSettings: AccessibilitySettings) => {
-    const root = document.documentElement;
-
-    // Mode senior
-    if (newSettings.seniorMode) {
-      root.classList.add('senior-mode');
-    } else {
-      root.classList.remove('senior-mode');
-    }
-
-    // Mode dyslexique
-    if (newSettings.dyslexicMode) {
-      root.classList.add('dyslexic-mode');
-    } else {
-      root.classList.remove('dyslexic-mode');
-    }
-
-    // Contraste élevé
-    if (newSettings.highContrast) {
-      root.classList.add('high-contrast');
-    } else {
-      root.classList.remove('high-contrast');
-    }
-
-    // Taille de police
-    root.classList.remove('font-size-normal', 'font-size-large', 'font-size-xlarge');
-    root.classList.add(`font-size-${newSettings.fontSize}`);
-  };
-
-  const updateSetting = <K extends keyof AccessibilitySettings>(
-    key: K,
-    value: AccessibilitySettings[K]
-  ) => {
-    const newSettings = { ...settings, [key]: value };
-    setSettings(newSettings);
-    applySettings(newSettings);
-    localStorage.setItem('accessibility-settings', JSON.stringify(newSettings));
-  };
-
-  const resetSettings = () => {
-    setSettings(defaultSettings);
-    applySettings(defaultSettings);
-    localStorage.removeItem('accessibility-settings');
-    setTheme('system');
-  };
+  const mounted = useIsMounted();
 
   if (!mounted) return null;
 
@@ -167,42 +103,31 @@ export function AccessibilityPanel() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-4">
-            <button
-              onClick={() => updateSetting('fontSize', 'normal')}
-              className={cn(
-                'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors',
-                settings.fontSize === 'normal'
-                  ? 'border-primary bg-primary/5'
-                  : 'border-transparent bg-muted hover:bg-muted/80'
-              )}
-            >
-              <span className="text-base font-medium">Aa</span>
-              <span className="text-sm">Normal</span>
-            </button>
-            <button
-              onClick={() => updateSetting('fontSize', 'large')}
-              className={cn(
-                'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors',
-                settings.fontSize === 'large'
-                  ? 'border-primary bg-primary/5'
-                  : 'border-transparent bg-muted hover:bg-muted/80'
-              )}
-            >
-              <span className="text-lg font-medium">Aa</span>
-              <span className="text-sm">Grand</span>
-            </button>
-            <button
-              onClick={() => updateSetting('fontSize', 'xlarge')}
-              className={cn(
-                'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors',
-                settings.fontSize === 'xlarge'
-                  ? 'border-primary bg-primary/5'
-                  : 'border-transparent bg-muted hover:bg-muted/80'
-              )}
-            >
-              <span className="text-xl font-medium">Aa</span>
-              <span className="text-sm">Très grand</span>
-            </button>
+            {(['normal', 'large', 'xlarge'] as TextSize[]).map((size) => (
+              <button
+                key={size}
+                onClick={() => setTextSize(size)}
+                className={cn(
+                  'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors',
+                  textSize === size
+                    ? 'border-primary bg-primary/5'
+                    : 'border-transparent bg-muted hover:bg-muted/80'
+                )}
+              >
+                <span className={cn(
+                  'font-medium',
+                  size === 'normal' && 'text-base',
+                  size === 'large' && 'text-lg',
+                  size === 'xlarge' && 'text-xl'
+                )}>Aa</span>
+                <span className="text-sm">
+                  {size === 'normal' && 'Normal'}
+                  {size === 'large' && 'Grand'}
+                  {size === 'xlarge' && 'Très grand'}
+                </span>
+                {textSize === size && <Check className="h-4 w-4 text-primary" />}
+              </button>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -229,8 +154,8 @@ export function AccessibilityPanel() {
             </div>
             <input
               type="checkbox"
-              checked={settings.seniorMode}
-              onChange={(e) => updateSetting('seniorMode', e.target.checked)}
+              checked={seniorMode}
+              onChange={(e) => setSeniorMode(e.target.checked)}
               className="h-5 w-5 rounded border-input accent-primary"
             />
           </label>
@@ -241,14 +166,14 @@ export function AccessibilityPanel() {
               <div>
                 <p className="font-medium">Mode dyslexie</p>
                 <p className="text-sm text-muted-foreground">
-                  Police adaptée et espacement des lettres
+                  Police OpenDyslexic et espacement des lettres
                 </p>
               </div>
             </div>
             <input
               type="checkbox"
-              checked={settings.dyslexicMode}
-              onChange={(e) => updateSetting('dyslexicMode', e.target.checked)}
+              checked={dyslexicMode}
+              onChange={(e) => setDyslexicMode(e.target.checked)}
               className="h-5 w-5 rounded border-input accent-primary"
             />
           </label>
@@ -265,8 +190,26 @@ export function AccessibilityPanel() {
             </div>
             <input
               type="checkbox"
-              checked={settings.highContrast}
-              onChange={(e) => updateSetting('highContrast', e.target.checked)}
+              checked={highContrast}
+              onChange={(e) => setHighContrast(e.target.checked)}
+              className="h-5 w-5 rounded border-input accent-primary"
+            />
+          </label>
+
+          <label className="flex items-center justify-between p-4 bg-muted rounded-lg cursor-pointer hover:bg-muted/80 transition-colors">
+            <div className="flex items-center gap-3">
+              <Zap className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="font-medium">Réduire les animations</p>
+                <p className="text-sm text-muted-foreground">
+                  Désactive les animations et transitions
+                </p>
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={reducedMotion}
+              onChange={(e) => setReducedMotion(e.target.checked)}
               className="h-5 w-5 rounded border-input accent-primary"
             />
           </label>

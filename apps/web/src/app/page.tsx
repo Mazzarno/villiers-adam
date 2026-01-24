@@ -1,12 +1,9 @@
-import { Suspense } from 'react';
 import { FlashBanner } from '@/components/layout/flash-banner';
 import { Hero } from '@/components/home/hero';
 import { QuickAccess } from '@/components/home/quick-access';
 import { NewsSection } from '@/components/home/news-section';
 import { EventsSection } from '@/components/home/events-section';
-import { MayorMessage } from '@/components/home/mayor-message';
-import { Skeleton } from '@/components/ui/skeleton';
-import { api } from '@/lib/api';
+import { FacebookFeed } from '@/components/home/facebook-feed';
 
 // Démonstration - données statiques en attendant l'API
 const demoFlashInfo = [
@@ -151,11 +148,11 @@ export default async function HomePage() {
       {/* Recent news */}
       {articles.length > 0 && <NewsSection articles={articles} />}
 
-      {/* Mayor's message */}
-      <MayorMessage />
-
       {/* Upcoming events */}
       {events.length > 0 && <EventsSection events={events} />}
+
+      {/* Facebook feed */}
+      <FacebookFeed />
     </>
   );
 }
