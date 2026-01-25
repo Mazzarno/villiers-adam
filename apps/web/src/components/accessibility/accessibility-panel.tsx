@@ -137,7 +137,7 @@ export function AccessibilityPanel() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Eye className="h-5 w-5" />
-            Modes d'accessibilité
+            Modes d&apos;accessibilité
           </CardTitle>
           <CardDescription>Activez les options adaptées à vos besoins</CardDescription>
         </CardHeader>

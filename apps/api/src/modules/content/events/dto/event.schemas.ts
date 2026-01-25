@@ -4,8 +4,11 @@ const statusEnum = z.enum(['DRAFT', 'SCHEDULED', 'PUBLISHED', 'ARCHIVED']);
 
 export const eventCreateSchema = z.object({
   title: z.string().min(1),
+  slug: z.string().min(1).optional().nullable(),
   summary: z.string().optional().nullable(),
   content: z.any(),
+  metaTitle: z.string().optional().nullable(),
+  metaDescription: z.string().optional().nullable(),
   locationName: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
   latitude: z.number().optional().nullable(),

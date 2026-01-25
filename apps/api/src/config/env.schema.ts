@@ -13,6 +13,11 @@ export const envSchema = z.object({
   MINIO_ACCESS_KEY: z.string().optional(),
   MINIO_SECRET_KEY: z.string().optional(),
   MINIO_BUCKET: z.string().optional(),
+  MINIO_USE_SSL: z.preprocess((value) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  }, z.boolean().optional()),
 
   MEILI_HOST: z.string().optional(),
   MEILI_MASTER_KEY: z.string().optional(),
@@ -26,6 +31,18 @@ export const envSchema = z.object({
   MAILJET_SECRET_KEY: z.string().optional(),
   MAILJET_SENDER_EMAIL: z.string().email().optional(),
   MAILJET_SENDER_NAME: z.string().optional(),
+
+  HCAPTCHA_ENABLED: z.preprocess((value) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  }, z.boolean().optional()),
+  HCAPTCHA_SECRET_KEY: z.string().optional(),
+  CORS_ORIGINS: z.string().optional(),
+
+  RETENTION_FORMS_DAYS: z.coerce.number().optional(),
+  RETENTION_RESERVATIONS_DAYS: z.coerce.number().optional(),
+  RETENTION_NEWSLETTER_DAYS: z.coerce.number().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

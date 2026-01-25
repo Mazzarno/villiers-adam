@@ -9,7 +9,6 @@ import {
   FileText,
   Newspaper,
   Calendar,
-  Users,
   Image,
   Settings,
   History,
@@ -18,6 +17,9 @@ import {
   ClipboardList,
   MessageSquare,
   CalendarClock,
+  Landmark,
+  Briefcase,
+  Bus,
   ChevronLeft,
   LogOut,
 } from 'lucide-react';
@@ -31,6 +33,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useAuth } from '@/lib/auth-context';
 
 interface SidebarProps {
   collapsed: boolean;
@@ -54,6 +58,14 @@ const navigation = [
     ],
   },
   {
+    title: 'Mairie',
+    items: [
+      { name: 'Conseil municipal', href: '/mairie/conseil', icon: Landmark },
+      { name: 'Services municipaux', href: '/mairie/services', icon: Briefcase },
+      { name: 'Transports', href: '/transports', icon: Bus },
+    ],
+  },
+  {
     title: 'Services',
     items: [
       { name: 'Agenda', href: '/agenda', icon: CalendarClock },
@@ -66,7 +78,6 @@ const navigation = [
   {
     title: 'Administration',
     items: [
-      { name: 'Utilisateurs', href: '/users', icon: Users },
       { name: 'Historique', href: '/audit', icon: History },
       { name: 'Paramètres', href: '/settings', icon: Settings },
     ],
@@ -75,6 +86,12 @@ const navigation = [
 
 export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
   const pathname = usePathname();
+  const { user, logout } = useAuth();
+
+  const userInitials = user
+    ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
+    : 'U';
+  const userName = user ? `${user.firstName} ${user.lastName}` : 'Utilisateur';
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -172,18 +189,28 @@ export function Sidebar({ collapsed, onCollapse }: SidebarProps) {
 
         {/* Footer */}
         <div className="border-t p-3">
-          <Separator className="mb-3" />
+          {!collapsed && user && (
+            <div className="flex items-center gap-3 px-2 py-2 mb-2">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="text-xs">{userInitials}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate text-sidebar-foreground">{userName}</p>
+                <p className="text-xs text-sidebar-foreground/60 truncate">{user.email}</p>
+              </div>
+            </div>
+          )}
           {collapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="w-full">
+                <Button variant="ghost" size="icon" className="w-full" onClick={() => logout()}>
                   <LogOut className="h-5 w-5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="right">Déconnexion</TooltipContent>
             </Tooltip>
           ) : (
-            <Button variant="ghost" className="w-full justify-start gap-3">
+            <Button variant="ghost" className="w-full justify-start gap-3" onClick={() => logout()}>
               <LogOut className="h-5 w-5" />
               Déconnexion
             </Button>

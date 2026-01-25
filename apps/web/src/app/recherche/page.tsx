@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -15,7 +15,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { formatDate, truncate, cn } from '@/lib/utils';
+import { formatDate, cn } from '@/lib/utils';
+import api from '@/lib/api';
 
 interface SearchResult {
   id: string;
@@ -27,42 +28,47 @@ interface SearchResult {
   category?: string;
 }
 
-// Données de démonstration
-const demoResults: SearchResult[] = [
-  {
-    id: '1',
-    type: 'article',
-    title: 'Travaux de voirie : réfection de la rue principale',
-    slug: 'actualites/travaux-voirie-rue-principale',
-    excerpt: 'La commune entreprend des travaux de réfection de la chaussée rue principale.',
-    date: '2025-01-10T10:00:00Z',
-    category: 'Travaux',
-  },
-  {
-    id: '2',
-    type: 'event',
-    title: 'Voeux du Maire à la population',
-    slug: 'agenda/voeux-maire-2025',
-    excerpt: 'La municipalité vous convie à la cérémonie des voeux du Maire.',
-    date: '2025-01-26T18:00:00Z',
-    category: 'Cérémonie',
-  },
-  {
-    id: '3',
-    type: 'page',
-    title: 'Démarches administratives',
-    slug: 'mairie/demarches',
-    excerpt: 'Retrouvez toutes les démarches administratives : état civil, urbanisme, élections...',
-  },
-  {
-    id: '4',
-    type: 'directory',
-    title: 'Bibliothèque municipale',
+const toSearchResults = (payload: Awaited<ReturnType<typeof api.search.global>>): SearchResult[] => {
+  const articles = payload.articles.map((article) => ({
+    id: article.id,
+    type: 'article' as const,
+    title: article.title,
+    slug: `actualites/${article.slug}`,
+    excerpt: article.excerpt,
+    date: article.publishedAt ?? article.createdAt,
+    category: article.category?.name,
+  }));
+
+  const pages = payload.pages.map((page) => ({
+    id: page.id,
+    type: 'page' as const,
+    title: page.title,
+    slug: page.slug,
+    excerpt: page.excerpt,
+    date: page.publishedAt ?? page.createdAt,
+  }));
+
+  const events = payload.events.map((event) => ({
+    id: event.id,
+    type: 'event' as const,
+    title: event.title,
+    slug: `agenda/${event.slug}`,
+    excerpt: event.description,
+    date: event.startDate,
+    category: event.category,
+  }));
+
+  const directory = payload.directory.map((entry) => ({
+    id: entry.id,
+    type: 'directory' as const,
+    title: entry.name,
     slug: 'annuaire',
-    excerpt: 'Prêt de livres, BD, magazines. Espace multimédia et animations.',
-    category: 'Service public',
-  },
-];
+    excerpt: entry.description,
+    category: entry.category,
+  }));
+
+  return [...articles, ...pages, ...events, ...directory];
+};
 
 const typeConfig: Record<
   string,
@@ -98,7 +104,7 @@ const filterOptions = [
   { value: 'directory', label: 'Annuaire' },
 ];
 
-export default function RecherchePage() {
+function RechercheContent() {
   const searchParams = useSearchParams();
   const initialQuery = searchParams.get('q') || '';
 
@@ -124,17 +130,15 @@ export default function RecherchePage() {
     setLoading(true);
     setSearched(true);
 
-    // Simulation de recherche avec les données de démo
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
-    const filtered = demoResults.filter(
-      (result) =>
-        result.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        result.excerpt?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-
-    setResults(filtered);
-    setLoading(false);
+    try {
+      const payload = await api.search.global(searchQuery);
+      setResults(toSearchResults(payload));
+    } catch (error) {
+      console.error('Failed to search content:', error);
+      setResults([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -154,7 +158,7 @@ export default function RecherchePage() {
             Recherche
           </h1>
           <p className="text-lg text-primary-foreground/80 mb-8 max-w-2xl">
-            Trouvez rapidement l'information que vous cherchez sur le site de Villiers-Adam.
+            Trouvez rapidement l&apos;information que vous cherchez sur le site de Villiers-Adam.
           </p>
 
           <form onSubmit={handleSubmit} className="max-w-2xl">
@@ -279,7 +283,7 @@ export default function RecherchePage() {
                 <p className="text-muted-foreground mb-6">
                   Aucun résultat ne correspond à votre recherche.
                   <br />
-                  Essayez avec d'autres mots-clés.
+                  Essayez avec d&apos;autres mots-clés.
                 </p>
                 <div className="flex flex-wrap justify-center gap-2">
                   <Button variant="outline" onClick={() => setQuery('démarches')}>
@@ -341,5 +345,19 @@ export default function RecherchePage() {
         )}
       </section>
     </div>
+  );
+}
+
+export default function RecherchePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      }
+    >
+      <RechercheContent />
+    </Suspense>
   );
 }

@@ -37,6 +37,13 @@ export class EventsController {
     return this.eventsService.listAll({ status: parsedStatus, search });
   }
 
+  @UseGuards(JwtAuthGuard, PermissionGuard)
+  @RequirePermission('content:read')
+  @Get('admin/:id')
+  getById(@Param('id') id: string) {
+    return this.eventsService.getById(id);
+  }
+
   @Get(':slug')
   getBySlug(@Param('slug') slug: string) {
     return this.eventsService.getBySlug(slug);

@@ -2,7 +2,6 @@
 
 import * as React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
 import { MoreHorizontal, Plus, ArrowUpDown, Eye, Pencil, Trash2, Archive, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -27,7 +26,6 @@ const statusOptions = [
 ];
 
 export default function PagesListPage() {
-  const router = useRouter();
   const [data, setData] = React.useState<Page[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 

@@ -16,7 +16,6 @@ import {
   Video,
   File,
   Loader2,
-  X,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -83,7 +82,7 @@ const item = {
   show: { opacity: 1, scale: 1 },
 };
 
-export default function MediaLibraryPage() {
+function MediaLibraryContent() {
   const searchParams = useSearchParams();
   const [mediaList, setMediaList] = React.useState<Media[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -114,6 +113,25 @@ export default function MediaLibraryPage() {
     }
   };
 
+  const getImageDimensions = (file: File): Promise<{ width: number; height: number } | null> => {
+    return new Promise((resolve) => {
+      if (!file.type.startsWith('image/')) {
+        resolve(null);
+        return;
+      }
+      const img = new window.Image();
+      img.onload = () => {
+        resolve({ width: img.width, height: img.height });
+        URL.revokeObjectURL(img.src);
+      };
+      img.onerror = () => {
+        resolve(null);
+        URL.revokeObjectURL(img.src);
+      };
+      img.src = URL.createObjectURL(file);
+    });
+  };
+
   const onDrop = React.useCallback(async (acceptedFiles: File[]) => {
     if (acceptedFiles.length === 0) return;
 
@@ -124,10 +142,11 @@ export default function MediaLibraryPage() {
       for (let i = 0; i < acceptedFiles.length; i++) {
         const file = acceptedFiles[i];
 
-        const { uploadUrl, key } = await mediaApi.getUploadUrl(
-          file.name,
-          file.type,
-        );
+        const { uploadUrl, storageKey } = await mediaApi.presign({
+          filename: file.name,
+          mimeType: file.type,
+          size: file.size,
+        });
 
         await fetch(uploadUrl, {
           method: 'PUT',
@@ -135,11 +154,16 @@ export default function MediaLibraryPage() {
           headers: { 'Content-Type': file.type },
         });
 
-        await mediaApi.create({
+        const dimensions = await getImageDimensions(file);
+
+        await mediaApi.confirm({
+          storageKey,
           filename: file.name,
-          storageKey: key,
           mimeType: file.type,
           size: file.size,
+          title: file.name.replace(/\.[^/.]+$/, ''),
+          width: dimensions?.width ?? null,
+          height: dimensions?.height ?? null,
         });
 
         setUploadProgress(((i + 1) / acceptedFiles.length) * 100);
@@ -488,5 +512,19 @@ export default function MediaLibraryPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+export default function MediaLibraryPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="flex h-96 items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      }
+    >
+      <MediaLibraryContent />
+    </React.Suspense>
   );
 }

@@ -1,5 +1,6 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -41,7 +42,16 @@ export class AuthController {
     });
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('me')
+  me(@Req() req: Request) {
+    const user = req.user as JwtPayload;
+    return this.authService.getProfile(user.sub);
+  }
+
   @Post('login')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ short: { limit: 5, ttl: 60000 } })
   login(@Req() req: Request, @Body(new ZodValidationPipe(loginSchema)) body: LoginInput) {
     return this.authService.login(body, {
       userId: 'unknown',
@@ -51,6 +61,8 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ medium: { limit: 20, ttl: 60000 } })
   refresh(@Body(new ZodValidationPipe(refreshSchema)) body: RefreshInput) {
     return this.authService.refresh(body);
   }
@@ -66,6 +78,8 @@ export class AuthController {
   }
 
   @Post('forgot-password')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ short: { limit: 5, ttl: 60000 } })
   forgotPassword(
     @Body(new ZodValidationPipe(forgotPasswordSchema)) body: ForgotPasswordInput,
   ) {
@@ -73,6 +87,8 @@ export class AuthController {
   }
 
   @Post('reset-password')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ short: { limit: 5, ttl: 60000 } })
   resetPassword(
     @Body(new ZodValidationPipe(resetPasswordSchema)) body: ResetPasswordInput,
   ) {
@@ -80,6 +96,8 @@ export class AuthController {
   }
 
   @Post('mfa/verify')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ short: { limit: 5, ttl: 60000 } })
   verifyMfa(@Req() req: Request, @Body(new ZodValidationPipe(mfaVerifySchema)) body: MfaVerifyInput) {
     return this.authService.verifyMfa(body, {
       userId: 'unknown',

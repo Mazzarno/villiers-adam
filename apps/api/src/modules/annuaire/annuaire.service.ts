@@ -40,6 +40,7 @@ export class AnnuaireService {
     return this.prisma.directoryEntry.findMany({
       where,
       orderBy: { name: 'asc' },
+      include: { coverMedia: true },
     });
   }
 
@@ -62,7 +63,10 @@ export class AnnuaireService {
   }
 
   async getBySlug(slug: string) {
-    const entry = await this.prisma.directoryEntry.findUnique({ where: { slug } });
+    const entry = await this.prisma.directoryEntry.findUnique({
+      where: { slug },
+      include: { coverMedia: true },
+    });
     if (!entry || entry.status !== ContentStatus.PUBLISHED) {
       throw new NotFoundException('Entry not found');
     }

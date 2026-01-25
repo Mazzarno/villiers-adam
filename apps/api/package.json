@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "nest start --watch",
     "build": "nest build",
+    "start": "node dist/main.js",
     "lint": "eslint .",
     "typecheck": "pnpm -F @villiers-adam/shared build && tsc -p tsconfig.json --noEmit",
     "test": "jest"
@@ -25,6 +26,7 @@
     "@prisma/client": "^5.19.0",
     "argon2": "^0.31.0",
     "archiver": "^6.0.2",
+    "helmet": "^7.1.0",
     "meilisearch": "^0.44.0",
     "minio": "^7.1.3",
     "node-mailjet": "^6.0.11",

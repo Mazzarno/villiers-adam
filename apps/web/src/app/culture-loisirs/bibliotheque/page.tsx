@@ -123,16 +123,16 @@ export default function BibliothequePage() {
                 className="bg-orange-50/50 border border-orange-200/50 rounded-organic p-6 dark:bg-orange-950/20 dark:border-orange-900/30"
               >
                 <h3 className="font-heading text-lg font-semibold text-foreground mb-4">
-                  Comment s'inscrire ?
+                  Comment s&apos;inscrire ?
                 </h3>
                 <p className="text-muted-foreground mb-4">
-                  L'inscription est gratuite pour les habitants de Villiers-Adam.
+                  L&apos;inscription est gratuite pour les habitants de Villiers-Adam.
                   Présentez-vous à la bibliothèque avec :
                 </p>
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li className="flex gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-1.5 shrink-0" />
-                    Une pièce d'identité
+                    Une pièce d&apos;identité
                   </li>
                   <li className="flex gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-orange-500 mt-1.5 shrink-0" />
@@ -153,7 +153,7 @@ export default function BibliothequePage() {
               >
                 <h3 className="font-heading text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
                   <Clock className="h-5 w-5 text-villiers-gold" />
-                  Horaires d'ouverture
+                  Horaires d&apos;ouverture
                 </h3>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
@@ -166,7 +166,7 @@ export default function BibliothequePage() {
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground mt-4">
-                  Fermée pendant les vacances scolaires d'été.
+                  Fermée pendant les vacances scolaires d&apos;été.
                 </p>
               </motion.div>
 

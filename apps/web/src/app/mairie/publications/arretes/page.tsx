@@ -7,25 +7,67 @@ import { ChevronLeft, FileWarning } from 'lucide-react';
 import { DocumentList } from '@/components/publications/document-card';
 import { YearFilter } from '@/components/publications/year-filter';
 import { Button } from '@/components/ui/button';
-import {
-  demoNewsItems,
-  filterByPublicationType,
-  filterByYear,
-  sortByDate,
-  getAvailableYears,
-} from '@/lib/data/news';
+import api, { type Article, type PublicationType as ApiPublicationType } from '@/lib/api';
+import { filterByYear, getAvailableYears, sortByDate, type NewsItem } from '@/lib/data/news';
 
 export default function ArretesPage() {
   const [selectedYear, setSelectedYear] = React.useState<number | null>(null);
+  const [items, setItems] = React.useState<NewsItem[]>([]);
+
+  const mapPublicationType = React.useCallback((value?: ApiPublicationType) => {
+    switch (value) {
+      case 'ARRETE':
+        return 'arrete';
+      case 'COMPTE_RENDU':
+        return 'compte-rendu';
+      case 'DELIBERATION':
+        return 'deliberation';
+      default:
+        return undefined;
+    }
+  }, []);
+
+  const mapArticleToNewsItem = React.useCallback((article: Article): NewsItem => ({
+    id: article.id,
+    slug: article.slug,
+    title: article.title,
+    type: 'publication',
+    publicationType: mapPublicationType(article.publicationType),
+    date: article.publishedAt || article.createdAt,
+    summary: article.excerpt || '',
+    content: article.content || '',
+    imageUrl: article.featuredImage,
+    tags: article.tags || [],
+    pdfUrl: article.documentUrl,
+    documentNumber: article.documentNumber,
+    meetingDate: article.meetingDate,
+    year: article.publicationYear,
+  }), [mapPublicationType]);
+
+  React.useEffect(() => {
+    const load = async () => {
+      try {
+        const articles = await api.articles.list({
+          type: 'PUBLICATION',
+          publicationType: 'ARRETE',
+        });
+        setItems(sortByDate(articles.map(mapArticleToNewsItem)));
+      } catch (error) {
+        console.error('Failed to load arretes:', error);
+        setItems([]);
+      }
+    };
+
+    load();
+  }, [mapArticleToNewsItem]);
 
   // Récupérer tous les arrêtés
-  const allArretes = sortByDate(filterByPublicationType(demoNewsItems, 'arrete'));
-  const availableYears = getAvailableYears(allArretes);
+  const availableYears = getAvailableYears(items);
 
   // Filtrer par année si sélectionnée
   const filteredArretes = selectedYear
-    ? filterByYear(allArretes, selectedYear)
-    : allArretes;
+    ? filterByYear(items, selectedYear)
+    : items;
 
   return (
     <div className="min-h-screen">

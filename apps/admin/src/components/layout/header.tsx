@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bell, Search, Moon, Sun, User } from 'lucide-react';
+import { Bell, Search, Moon, Sun, User, LogOut } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/lib/auth-context';
 
 interface HeaderProps {
   sidebarCollapsed: boolean;
@@ -42,11 +43,18 @@ const breadcrumbMap: Record<string, string> = {
 export function Header({ sidebarCollapsed }: HeaderProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
+  const { user, logout } = useAuth();
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
     setMounted(true);
   }, []);
+
+  const userInitials = user
+    ? `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
+    : 'AD';
+  const userName = user ? `${user.firstName} ${user.lastName}` : 'Utilisateur';
+  const userEmail = user?.email ?? '';
 
   const getBreadcrumbs = () => {
     const segments = pathname.split('/').filter(Boolean);
@@ -132,16 +140,16 @@ export function Header({ sidebarCollapsed }: HeaderProps) {
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
               <Avatar className="h-8 w-8">
                 <AvatarImage src="/avatars/user.png" alt="Avatar" />
-                <AvatarFallback>AD</AvatarFallback>
+                <AvatarFallback>{userInitials}</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">Admin Mairie</p>
+                <p className="text-sm font-medium leading-none">{userName}</p>
                 <p className="text-xs leading-none text-muted-foreground">
-                  admin@villiers-adam.fr
+                  {userEmail}
                 </p>
               </div>
             </DropdownMenuLabel>
@@ -159,7 +167,11 @@ export function Header({ sidebarCollapsed }: HeaderProps) {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-destructive">
+            <DropdownMenuItem
+              className="text-destructive cursor-pointer"
+              onClick={() => logout()}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
               Déconnexion
             </DropdownMenuItem>
           </DropdownMenuContent>

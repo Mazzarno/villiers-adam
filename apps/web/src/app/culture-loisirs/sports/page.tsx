@@ -180,10 +180,10 @@ export default function SportsPage() {
                 <TreePine className="h-6 w-6 text-villiers-green shrink-0" />
                 <div>
                   <h3 className="font-heading text-lg font-semibold text-foreground mb-2">
-                    Forêt domaniale de L'Isle-Adam
+                    Forêt domaniale de L&apos;Isle-Adam
                   </h3>
                   <p className="text-muted-foreground">
-                    Avec plus de 1 500 hectares, la forêt de L'Isle-Adam offre un terrain de jeu
+                    Avec plus de 1 500 hectares, la forêt de L&apos;Isle-Adam offre un terrain de jeu
                     idéal pour les amateurs de nature. Chênes centenaires, sentiers balisés,
                     et faune préservée vous attendent à quelques pas du village.
                   </p>

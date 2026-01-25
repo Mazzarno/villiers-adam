@@ -1,15 +1,19 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ReservationStatus } from '@prisma/client';
 
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { HcaptchaService } from '../../common/security/hcaptcha.service';
 import { EmailService } from '../email/email.service';
 import { ReservationCreateInput, ReservationStatusInput } from './dto/reservation.schemas';
 
 @Injectable()
 export class ReservationsService {
+  private readonly logger = new Logger(ReservationsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
+    private readonly hcaptchaService: HcaptchaService,
   ) {}
 
   async checkAvailability(roomId: string, startsAt: Date, endsAt: Date, excludeId?: string) {
@@ -55,7 +59,13 @@ export class ReservationsService {
     return { date, reservations };
   }
 
-  async create(input: ReservationCreateInput) {
+  async create(input: ReservationCreateInput, ip?: string) {
+    const captchaValid = await this.hcaptchaService.verifyToken(input.captchaToken ?? undefined, ip);
+    if (!captchaValid) {
+      this.logger.warn(`Reservation blocked (captcha invalid) from ${ip ?? 'unknown IP'}`);
+      throw new BadRequestException('Captcha verification failed');
+    }
+
     const room = await this.prisma.room.findUnique({ where: { id: input.roomId } });
     if (!room || !room.isActive) {
       throw new BadRequestException('Invalid room');

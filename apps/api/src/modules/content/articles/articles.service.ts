@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { ContentStatus, Prisma } from '@prisma/client';
+import { ArticleType, ContentStatus, Prisma, PublicationType } from '@prisma/client';
 import { slugify } from '@villiers-adam/shared';
 
 import { PrismaService } from '../../../common/prisma/prisma.service';
@@ -22,14 +22,35 @@ export class ArticlesService {
     private readonly searchService: SearchService,
   ) {}
 
-  async listPublished() {
+  async listPublished(params: { type?: ArticleType; publicationType?: PublicationType; isFlash?: boolean } = {}) {
+    const where: Prisma.ArticleWhereInput = {
+      status: ContentStatus.PUBLISHED,
+      publishedAt: { lte: new Date() },
+    };
+
+    if (params.type) {
+      where.type = params.type;
+    }
+    if (params.publicationType) {
+      where.publicationType = params.publicationType;
+    }
+    if (params.isFlash !== undefined) {
+      where.isFlash = params.isFlash;
+    }
+
     return this.prisma.article.findMany({
-      where: { status: ContentStatus.PUBLISHED, publishedAt: { lte: new Date() } },
+      where,
       orderBy: { publishedAt: 'desc' },
+      include: { coverMedia: true, documentMedia: true },
     });
   }
 
-  async listAll(params: { status?: ContentStatus; search?: string }) {
+  async listAll(params: {
+    status?: ContentStatus;
+    search?: string;
+    type?: ArticleType;
+    publicationType?: PublicationType;
+  }) {
     const where: Prisma.ArticleWhereInput = {};
     if (params.status) {
       where.status = params.status;
@@ -37,11 +58,31 @@ export class ArticlesService {
     if (params.search) {
       where.title = { contains: params.search, mode: 'insensitive' };
     }
+    if (params.type) {
+      where.type = params.type;
+    }
+    if (params.publicationType) {
+      where.publicationType = params.publicationType;
+    }
     return this.prisma.article.findMany({ where, orderBy: { updatedAt: 'desc' } });
   }
 
+  async getById(id: string) {
+    const article = await this.prisma.article.findUnique({
+      where: { id },
+      include: { coverMedia: true, documentMedia: true },
+    });
+    if (!article) {
+      throw new NotFoundException('Article not found');
+    }
+    return article;
+  }
+
   async getBySlug(slug: string) {
-    const article = await this.prisma.article.findUnique({ where: { slug } });
+    const article = await this.prisma.article.findUnique({
+      where: { slug },
+      include: { coverMedia: true, documentMedia: true },
+    });
     if (!article || article.status !== ContentStatus.PUBLISHED) {
       throw new NotFoundException('Article not found');
     }
@@ -49,7 +90,8 @@ export class ArticlesService {
   }
 
   async create(input: ArticleCreateInput, actor: AuditContext) {
-    const slug = await this.ensureUniqueSlug(slugify(input.title));
+    const baseSlug = input.slug?.trim() ? input.slug.trim() : input.title;
+    const slug = await this.ensureUniqueSlug(slugify(baseSlug));
     const { status, publishedAt, scheduledAt } = this.normalizeStatus(input);
 
     const article = await this.prisma.article.create({
@@ -58,6 +100,14 @@ export class ArticlesService {
         slug,
         summary: input.summary ?? null,
         content: input.content,
+        metaTitle: input.metaTitle ?? null,
+        metaDescription: input.metaDescription ?? null,
+        type: input.type ?? 'ACTUALITE',
+        publicationType: input.publicationType ?? null,
+        documentMediaId: input.documentMediaId ?? null,
+        documentNumber: input.documentNumber ?? null,
+        meetingDate: input.meetingDate ? new Date(input.meetingDate) : null,
+        publicationYear: input.publicationYear ?? null,
         isFlash: input.isFlash ?? false,
         status,
         publishedAt,
@@ -89,7 +139,14 @@ export class ArticlesService {
       throw new NotFoundException('Article not found');
     }
 
-    const slug = input.title ? await this.ensureUniqueSlug(slugify(input.title), id) : undefined;
+    const slugSource = input.slug?.trim()
+      ? input.slug.trim()
+      : input.title
+        ? input.title
+        : undefined;
+    const slug = slugSource
+      ? await this.ensureUniqueSlug(slugify(slugSource), id)
+      : undefined;
     const { status, publishedAt, scheduledAt } = this.normalizeStatus(input, article);
 
     const updated = await this.prisma.article.update({
@@ -99,6 +156,24 @@ export class ArticlesService {
         slug: slug ?? article.slug,
         summary: input.summary !== undefined ? input.summary : article.summary,
         content: input.content !== undefined ? input.content : article.content,
+        metaTitle: input.metaTitle !== undefined ? input.metaTitle : article.metaTitle,
+        metaDescription:
+          input.metaDescription !== undefined ? input.metaDescription : article.metaDescription,
+        type: input.type ?? article.type,
+        publicationType:
+          input.publicationType !== undefined ? input.publicationType : article.publicationType,
+        documentMediaId:
+          input.documentMediaId !== undefined ? input.documentMediaId : article.documentMediaId,
+        documentNumber:
+          input.documentNumber !== undefined ? input.documentNumber : article.documentNumber,
+        meetingDate:
+          input.meetingDate !== undefined
+            ? input.meetingDate
+              ? new Date(input.meetingDate)
+              : null
+            : article.meetingDate,
+        publicationYear:
+          input.publicationYear !== undefined ? input.publicationYear : article.publicationYear,
         isFlash: input.isFlash ?? article.isFlash,
         status,
         publishedAt,

@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { HCaptchaWidget } from '@/components/forms/hcaptcha';
+import api from '@/lib/api';
 import { mairieConfig } from '@/lib/config';
 
 const subjects = [
@@ -37,9 +39,11 @@ export default function ContactPage() {
     message: '',
     honeypot: '', // Champ anti-spam
   });
+  const [captchaToken, setCaptchaToken] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const siteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? '';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,14 +54,26 @@ export default function ContactPage() {
       return;
     }
 
+    if (siteKey && !captchaToken) {
+      setError('Veuillez valider le captcha avant d\'envoyer le formulaire.');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
-      // Simulation d'envoi
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await api.forms.submit({
+        type: 'CONTACT',
+        subject: formData.subject || undefined,
+        message: formData.message,
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone || undefined,
+        website: formData.honeypot,
+        captchaToken: captchaToken || null,
+      });
 
-      // En production : api.contact.send(formData)
       setSuccess(true);
       setFormData({
         name: '',
@@ -67,6 +83,7 @@ export default function ContactPage() {
         message: '',
         honeypot: '',
       });
+      setCaptchaToken('');
     } catch (err) {
       setError('Une erreur est survenue. Veuillez réessayer.');
     } finally {
@@ -92,7 +109,7 @@ export default function ContactPage() {
             Contact
           </h1>
           <p className="text-lg text-primary-foreground/80 max-w-2xl">
-            Une question ? Besoin d'un renseignement ? Contactez la mairie de Villiers-Adam.
+            Une question ? Besoin d&apos;un renseignement ? Contactez la mairie de Villiers-Adam.
           </p>
         </div>
       </section>
@@ -214,6 +231,20 @@ export default function ContactPage() {
                       />
                     </div>
 
+                    {siteKey && (
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">
+                          Vérification anti-spam
+                        </label>
+                        <HCaptchaWidget
+                          siteKey={siteKey}
+                          onVerify={setCaptchaToken}
+                          onExpire={() => setCaptchaToken('')}
+                          onError={() => setCaptchaToken('')}
+                        />
+                      </div>
+                    )}
+
                     {error && (
                       <p className="text-sm text-destructive">{error}</p>
                     )}
@@ -297,7 +328,7 @@ export default function ContactPage() {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Clock className="h-5 w-5 text-primary" />
-                  Horaires d'ouverture
+                  Horaires d&apos;ouverture
                 </CardTitle>
               </CardHeader>
               <CardContent>

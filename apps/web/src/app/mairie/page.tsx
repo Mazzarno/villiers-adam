@@ -65,14 +65,14 @@ export default function MairiePage() {
               </h1>
               <p className="text-lg text-muted-foreground leading-relaxed mb-8">
                 La mairie de Villiers-Adam vous accueille pour toutes vos démarches administratives.
-                Retrouvez ici les informations sur l'équipe municipale, les services et les publications officielles.
+                Retrouvez ici les informations sur l&apos;équipe municipale, les services et les publications officielles.
               </p>
 
               {/* Horaires d'ouverture */}
               <div className="bg-background/80 backdrop-blur-sm border border-border/50 rounded-organic p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Clock className="h-4 w-4 text-villiers-gold" />
-                  <span className="font-medium text-foreground text-sm">Horaires d'ouverture</span>
+                  <span className="font-medium text-foreground text-sm">Horaires d&apos;ouverture</span>
                 </div>
                 <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm text-muted-foreground">
                   <span>Lundi</span><span className="font-mono">9h–12h / 14h–17h</span>

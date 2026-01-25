@@ -106,7 +106,7 @@ export default function UrbanismePage() {
                       Commune du Parc naturel régional du Vexin français
                     </h2>
                     <p className="text-sm text-muted-foreground">
-                      Les projets de construction sont soumis à l'avis de l'Architecte des Bâtiments de France
+                      Les projets de construction sont soumis à l&apos;avis de l&apos;Architecte des Bâtiments de France
                       et doivent respecter les prescriptions du PNR en matière de matériaux, couleurs et volumétrie.
                     </p>
                   </div>
@@ -120,7 +120,7 @@ export default function UrbanismePage() {
                 viewport={{ once: true }}
               >
                 <h2 className="font-heading text-2xl font-semibold text-foreground mb-6">
-                  Démarches d'urbanisme
+                  Démarches d&apos;urbanisme
                 </h2>
                 <div className="space-y-4">
                   {demarches.map((demarche, index) => (
@@ -151,8 +151,8 @@ export default function UrbanismePage() {
                   Dépôt de matériaux sur la voie publique
                 </h3>
                 <p className="text-muted-foreground mb-4">
-                  Tout dépôt de sable, gravats, matériaux, etc., ainsi que d'une benne à gravats,
-                  doit faire l'objet d'une <strong className="text-foreground">demande d'autorisation en Mairie</strong>.
+                  Tout dépôt de sable, gravats, matériaux, etc., ainsi que d&apos;une benne à gravats,
+                  doit faire l&apos;objet d&apos;une <strong className="text-foreground">demande d&apos;autorisation en Mairie</strong>.
                 </p>
                 <Button variant="outline" size="sm" className="gap-2">
                   <Download className="h-3.5 w-3.5" />
@@ -228,7 +228,7 @@ export default function UrbanismePage() {
                     className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
                   >
                     <ExternalLink className="h-3.5 w-3.5" />
-                    Géoportail de l'urbanisme
+                    Géoportail de l&apos;urbanisme
                   </a>
                 </div>
               </motion.div>

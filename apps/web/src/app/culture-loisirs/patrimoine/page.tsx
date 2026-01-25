@@ -15,7 +15,6 @@ import {
   X,
   Music,
   BookOpen,
-  Crown,
   Mountain,
   Users,
 } from 'lucide-react';
@@ -138,7 +137,6 @@ const historicGallery = [
 
 export default function PatrimoinePage() {
   const [selectedImage, setSelectedImage] = React.useState<number | null>(null);
-  const [selectedPersonnalite, setSelectedPersonnalite] = React.useState<string | null>(null);
 
   return (
     <div className="min-h-screen">

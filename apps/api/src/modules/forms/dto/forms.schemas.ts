@@ -12,6 +12,7 @@ export const formCreateSchema = z.object({
   phone: z.string().optional().nullable(),
   data: z.any().optional().nullable(),
   website: z.string().optional().nullable(),
+  captchaToken: z.string().optional().nullable(),
 });
 
 export const formStatusSchema = z.object({

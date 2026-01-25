@@ -31,7 +31,7 @@ export default function AccessibilitePage() {
             Accessibilité
           </h1>
           <p className="text-lg text-primary-foreground/80 max-w-2xl">
-            Le site de Villiers-Adam s'engage à rendre ses services accessibles à tous les citoyens.
+            Le site de Villiers-Adam s&apos;engage à rendre ses services accessibles à tous les citoyens.
           </p>
         </div>
       </section>
@@ -42,7 +42,7 @@ export default function AccessibilitePage() {
           {/* Settings panel */}
           <div>
             <h2 className="font-heading text-2xl font-semibold mb-6">
-              Personnaliser l'affichage
+              Personnaliser l&apos;affichage
             </h2>
             <AccessibilityPanel />
           </div>
@@ -52,7 +52,7 @@ export default function AccessibilitePage() {
             {/* Features */}
             <div>
               <h2 className="font-heading text-2xl font-semibold mb-6">
-                Fonctionnalités d'accessibilité
+                Fonctionnalités d&apos;accessibilité
               </h2>
               <Card>
                 <CardContent className="p-6">
@@ -71,13 +71,13 @@ export default function AccessibilitePage() {
             {/* RGAA declaration */}
             <div>
               <h2 className="font-heading text-2xl font-semibold mb-6">
-                Déclaration d'accessibilité
+                Déclaration d&apos;accessibilité
               </h2>
               <Card>
                 <CardContent className="p-6 space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    La commune de Villiers-Adam s'engage à rendre son site internet
-                    accessible conformément à l'article 47 de la loi n° 2005-102 du
+                    La commune de Villiers-Adam s&apos;engage à rendre son site internet
+                    accessible conformément à l&apos;article 47 de la loi n° 2005-102 du
                     11 février 2005.
                   </p>
 
@@ -85,7 +85,7 @@ export default function AccessibilitePage() {
                     <p className="font-medium mb-2">État de conformité</p>
                     <p className="text-sm text-muted-foreground">
                       Ce site est <strong>partiellement conforme</strong> au référentiel
-                      général d'amélioration de l'accessibilité (RGAA) version 4.1.
+                      général d&apos;amélioration de l&apos;accessibilité (RGAA) version 4.1.
                     </p>
                   </div>
 
@@ -115,8 +115,8 @@ export default function AccessibilitePage() {
               <Card>
                 <CardContent className="p-6 space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    Si vous rencontrez un défaut d'accessibilité vous empêchant
-                    d'accéder à un contenu ou une fonctionnalité du site, veuillez
+                    Si vous rencontrez un défaut d&apos;accessibilité vous empêchant
+                    d&apos;accéder à un contenu ou une fonctionnalité du site, veuillez
                     nous le signaler.
                   </p>
 
@@ -157,7 +157,7 @@ export default function AccessibilitePage() {
                     rel="noopener noreferrer"
                     className="flex items-center gap-2 text-sm text-primary hover:underline"
                   >
-                    RGAA - Référentiel Général d'Amélioration de l'Accessibilité
+                    RGAA - Référentiel Général d&apos;Amélioration de l&apos;Accessibilité
                     <ExternalLink className="h-4 w-4" />
                   </a>
                   <a

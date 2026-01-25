@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ReservationStatus } from '@prisma/client';
 import { Request } from 'express';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
@@ -39,8 +40,13 @@ export class ReservationsController {
   }
 
   @Post()
-  create(@Body(new ZodValidationPipe(reservationCreateSchema)) body: ReservationCreateInput) {
-    return this.reservationsService.create(body);
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ short: { limit: 5, ttl: 60000 } })
+  create(
+    @Req() req: Request,
+    @Body(new ZodValidationPipe(reservationCreateSchema)) body: ReservationCreateInput,
+  ) {
+    return this.reservationsService.create(body, req.ip);
   }
 
   @UseGuards(JwtAuthGuard, PermissionGuard)

@@ -131,47 +131,60 @@ export const auth = {
 
 export const pages = {
   list: (params?: { status?: string; search?: string }) =>
-    api<Page[]>(`/pages?${new URLSearchParams(params as Record<string, string>).toString()}`),
-  get: (id: string) => api<Page>(`/pages/${id}`),
+    api<Page[]>(`/pages/admin?${new URLSearchParams(params as Record<string, string>).toString()}`),
+  get: (id: string) => api<Page>(`/pages/admin/${id}`),
   create: (data: Partial<Page>) => api<Page>('/pages', { method: 'POST', body: data }),
   update: (id: string, data: Partial<Page>) => api<Page>(`/pages/${id}`, { method: 'PATCH', body: data }),
   delete: (id: string) => api(`/pages/${id}`, { method: 'DELETE' }),
   publish: (id: string) => api<Page>(`/pages/${id}/publish`, { method: 'POST' }),
-  schedule: (id: string, publishAt: string) => api<Page>(`/pages/${id}/schedule`, { method: 'POST', body: { publishAt } }),
+  schedule: (id: string, scheduledAt: string) =>
+    api<Page>(`/pages/${id}/schedule`, { method: 'POST', body: { scheduledAt } }),
   archive: (id: string) => api<Page>(`/pages/${id}/archive`, { method: 'POST' }),
 };
 
 export const articles = {
-  list: (params?: { status?: string; search?: string }) =>
-    api<Article[]>(`/articles?${new URLSearchParams(params as Record<string, string>).toString()}`),
-  get: (id: string) => api<Article>(`/articles/${id}`),
+  list: (params?: { status?: string; search?: string; type?: ArticleType; publicationType?: PublicationType }) =>
+    api<Article[]>(`/articles/admin?${new URLSearchParams(params as Record<string, string>).toString()}`),
+  get: (id: string) => api<Article>(`/articles/admin/${id}`),
   create: (data: Partial<Article>) => api<Article>('/articles', { method: 'POST', body: data }),
   update: (id: string, data: Partial<Article>) => api<Article>(`/articles/${id}`, { method: 'PATCH', body: data }),
   delete: (id: string) => api(`/articles/${id}`, { method: 'DELETE' }),
   publish: (id: string) => api<Article>(`/articles/${id}/publish`, { method: 'POST' }),
-  schedule: (id: string, publishAt: string) => api<Article>(`/articles/${id}/schedule`, { method: 'POST', body: { publishAt } }),
+  schedule: (id: string, scheduledAt: string) =>
+    api<Article>(`/articles/${id}/schedule`, { method: 'POST', body: { scheduledAt } }),
   archive: (id: string) => api<Article>(`/articles/${id}/archive`, { method: 'POST' }),
 };
 
 export const events = {
   list: (params?: { status?: string; search?: string }) =>
-    api<Event[]>(`/events?${new URLSearchParams(params as Record<string, string>).toString()}`),
-  get: (id: string) => api<Event>(`/events/${id}`),
+    api<Event[]>(`/events/admin?${new URLSearchParams(params as Record<string, string>).toString()}`),
+  get: (id: string) => api<Event>(`/events/admin/${id}`),
   create: (data: Partial<Event>) => api<Event>('/events', { method: 'POST', body: data }),
   update: (id: string, data: Partial<Event>) => api<Event>(`/events/${id}`, { method: 'PATCH', body: data }),
   delete: (id: string) => api(`/events/${id}`, { method: 'DELETE' }),
   publish: (id: string) => api<Event>(`/events/${id}/publish`, { method: 'POST' }),
+  schedule: (id: string, scheduledAt: string) =>
+    api<Event>(`/events/${id}/schedule`, { method: 'POST', body: { scheduledAt } }),
+  archive: (id: string) => api<Event>(`/events/${id}/archive`, { method: 'POST' }),
 };
 
 export const media = {
   list: (params?: { type?: string; search?: string }) =>
     api<Media[]>(`/media?${new URLSearchParams(params as Record<string, string>).toString()}`),
   get: (id: string) => api<Media>(`/media/${id}`),
-  getUploadUrl: (filename: string, contentType: string) =>
-    api<{ uploadUrl: string; key: string }>('/media/upload-url', { method: 'POST', body: { filename, contentType } }),
-  create: (data: { filename: string; storageKey: string; mimeType: string; size: number; alt?: string }) =>
-    api<Media>('/media', { method: 'POST', body: data }),
-  update: (id: string, data: Partial<Media>) => api<Media>(`/media/${id}`, { method: 'PATCH', body: data }),
+  presign: (data: { filename: string; mimeType: string; size: number }) =>
+    api<{ storageKey: string; uploadUrl: string; bucket: string }>('/media/presign', { method: 'POST', body: data }),
+  confirm: (data: {
+    storageKey: string;
+    filename: string;
+    mimeType: string;
+    size: number;
+    title?: string | null;
+    width?: number | null;
+    height?: number | null;
+    duration?: number | null;
+  }) => api<Media>('/media/confirm', { method: 'POST', body: data }),
+  download: (id: string) => api<{ url: string }>(`/media/${id}/download`),
   delete: (id: string) => api(`/media/${id}`, { method: 'DELETE' }),
 };
 
@@ -234,6 +247,62 @@ export const forms = {
     api<FormSubmission>(`/forms/${id}/status`, { method: 'PATCH', body: { status } }),
 };
 
+export const procedures = {
+  list: (params?: { status?: string }) =>
+    api<Procedure[]>(`/procedures?${new URLSearchParams(params as Record<string, string>).toString()}`),
+  get: (id: string) => api<Procedure>(`/procedures/${id}`),
+  create: (data: Partial<Procedure>) => api<Procedure>('/procedures', { method: 'POST', body: data }),
+  update: (id: string, data: Partial<Procedure>) => api<Procedure>(`/procedures/${id}`, { method: 'PATCH', body: data }),
+  delete: (id: string) => api(`/procedures/${id}`, { method: 'DELETE' }),
+  publish: (id: string) => api<Procedure>(`/procedures/${id}/publish`, { method: 'POST' }),
+  archive: (id: string) => api<Procedure>(`/procedures/${id}/archive`, { method: 'POST' }),
+};
+
+export const council = {
+  list: (params?: { status?: string; role?: CouncilMemberRole }) =>
+    api<CouncilMember[]>(`/council/admin?${new URLSearchParams(params as Record<string, string>).toString()}`),
+  get: (id: string) => api<CouncilMember>(`/council/admin/${id}`),
+  create: (data: Partial<CouncilMember>) => api<CouncilMember>('/council', { method: 'POST', body: data }),
+  update: (id: string, data: Partial<CouncilMember>) => api<CouncilMember>(`/council/${id}`, { method: 'PATCH', body: data }),
+  delete: (id: string) => api(`/council/${id}`, { method: 'DELETE' }),
+  publish: (id: string) => api<CouncilMember>(`/council/${id}/publish`, { method: 'POST' }),
+  schedule: (id: string, scheduledAt: string) =>
+    api<CouncilMember>(`/council/${id}/schedule`, { method: 'POST', body: { scheduledAt } }),
+  archive: (id: string) => api<CouncilMember>(`/council/${id}/archive`, { method: 'POST' }),
+};
+
+export const municipalServices = {
+  list: (params?: { status?: string; category?: string }) =>
+    api<MunicipalService[]>(
+      `/municipal-services/admin?${new URLSearchParams(params as Record<string, string>).toString()}`
+    ),
+  get: (id: string) => api<MunicipalService>(`/municipal-services/admin/${id}`),
+  create: (data: Partial<MunicipalService>) =>
+    api<MunicipalService>('/municipal-services', { method: 'POST', body: data }),
+  update: (id: string, data: Partial<MunicipalService>) =>
+    api<MunicipalService>(`/municipal-services/${id}`, { method: 'PATCH', body: data }),
+  delete: (id: string) => api(`/municipal-services/${id}`, { method: 'DELETE' }),
+  publish: (id: string) =>
+    api<MunicipalService>(`/municipal-services/${id}/publish`, { method: 'POST' }),
+  schedule: (id: string, scheduledAt: string) =>
+    api<MunicipalService>(`/municipal-services/${id}/schedule`, { method: 'POST', body: { scheduledAt } }),
+  archive: (id: string) =>
+    api<MunicipalService>(`/municipal-services/${id}/archive`, { method: 'POST' }),
+};
+
+export const transports = {
+  list: (params?: { status?: string }) =>
+    api<TransportInfo[]>(`/transports/admin?${new URLSearchParams(params as Record<string, string>).toString()}`),
+  get: (id: string) => api<TransportInfo>(`/transports/admin/${id}`),
+  create: (data: Partial<TransportInfo>) => api<TransportInfo>('/transports', { method: 'POST', body: data }),
+  update: (id: string, data: Partial<TransportInfo>) => api<TransportInfo>(`/transports/${id}`, { method: 'PATCH', body: data }),
+  delete: (id: string) => api(`/transports/${id}`, { method: 'DELETE' }),
+  publish: (id: string) => api<TransportInfo>(`/transports/${id}/publish`, { method: 'POST' }),
+  schedule: (id: string, scheduledAt: string) =>
+    api<TransportInfo>(`/transports/${id}/schedule`, { method: 'POST', body: { scheduledAt } }),
+  archive: (id: string) => api<TransportInfo>(`/transports/${id}/archive`, { method: 'POST' }),
+};
+
 // Types
 export type User = {
   id: string;
@@ -254,24 +323,107 @@ export type Page = {
   title: string;
   slug: string;
   content: unknown;
-  excerpt?: string;
+  blocks?: unknown | null;
+  summary?: string | null;
   status: ContentStatus;
-  publishedAt?: string;
-  authorId: string;
+  publishedAt?: string | null;
+  scheduledAt?: string | null;
+  menuTitle?: string | null;
+  showInMenu?: boolean;
+  menuOrder?: number;
+  parentId?: string | null;
+  template?: string | null;
+  coverMediaId?: string | null;
+  coverMedia?: Media | null;
   author?: User;
-  featuredImageId?: string;
-  featuredImage?: Media;
+  createdById?: string;
+  updatedById?: string | null;
   metaTitle?: string;
   metaDescription?: string;
   createdAt: string;
   updatedAt: string;
 };
 
-export type Article = Page;
+export type ArticleType = 'ACTUALITE' | 'PUBLICATION' | 'BREVE';
+export type PublicationType = 'ARRETE' | 'COMPTE_RENDU' | 'DELIBERATION';
+
+export type Article = Page & {
+  type: ArticleType;
+  publicationType?: PublicationType | null;
+  documentMediaId?: string | null;
+  documentMedia?: Media | null;
+  documentNumber?: string | null;
+  meetingDate?: string | null;
+  publicationYear?: number | null;
+  isFlash: boolean;
+};
 export type Event = Page & {
   startsAt: string;
   endsAt?: string;
-  location?: string;
+  locationName?: string | null;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+};
+
+export type CouncilMemberRole = 'MAIRE' | 'ADJOINT' | 'CONSEILLER' | 'CONSEILLER_DELEGUE';
+
+export type CouncilMember = {
+  id: string;
+  name: string;
+  role: CouncilMemberRole;
+  roleTitle?: string | null;
+  delegations?: string | null;
+  bio?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  order?: number;
+  status: ContentStatus;
+  publishedAt?: string | null;
+  scheduledAt?: string | null;
+  photoMediaId?: string | null;
+  photoMedia?: Media | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MunicipalService = {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  category?: string | null;
+  openingHours?: unknown | null;
+  address?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  website?: string | null;
+  order?: number;
+  status: ContentStatus;
+  publishedAt?: string | null;
+  scheduledAt?: string | null;
+  coverMediaId?: string | null;
+  coverMedia?: Media | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TransportInfo = {
+  id: string;
+  title: string;
+  slug: string;
+  summary?: string | null;
+  content: unknown;
+  operator?: string | null;
+  website?: string | null;
+  phone?: string | null;
+  status: ContentStatus;
+  publishedAt?: string | null;
+  scheduledAt?: string | null;
+  coverMediaId?: string | null;
+  coverMedia?: Media | null;
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type Media = {
@@ -288,23 +440,11 @@ export type Media = {
 export type Settings = {
   id: string;
   siteName: string;
-  siteDescription?: string;
-  primaryColor: string;
-  secondaryColor: string;
-  logoUrl?: string;
-  faviconUrl?: string;
-  fontHeading: string;
-  fontBody: string;
-  seniorModeEnabled: boolean;
-  dyslexicModeEnabled: boolean;
-  darkModeEnabled: boolean;
-  address?: string;
-  phone?: string;
-  email?: string;
-  openingHours?: Record<string, string>;
-  facebookUrl?: string;
-  twitterUrl?: string;
-  instagramUrl?: string;
+  branding?: unknown;
+  accessibility?: unknown;
+  contactEmail?: string | null;
+  contactPhone?: string | null;
+  address?: unknown | null;
 };
 
 export type AuditLog = {
@@ -381,4 +521,22 @@ export type FormSubmission = {
   email?: string;
   phone?: string;
   createdAt: string;
+};
+
+export type Procedure = {
+  id: string;
+  title: string;
+  slug: string;
+  summary?: string | null;
+  content: unknown;
+  steps?: unknown;
+  externalUrl?: string | null;
+  status: ContentStatus;
+  publishedAt?: string | null;
+  scheduledAt?: string | null;
+  coverMediaId?: string | null;
+  coverMedia?: Media | null;
+  createdById?: string;
+  createdAt: string;
+  updatedAt: string;
 };

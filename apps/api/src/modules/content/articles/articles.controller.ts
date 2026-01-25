@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
-import { ContentStatus } from '@prisma/client';
+import { ArticleType, ContentStatus, PublicationType } from '@prisma/client';
 import { Request } from 'express';
 
 import { ZodValidationPipe } from '../../../common/pipes/zod-validation.pipe';
@@ -22,19 +22,57 @@ export class ArticlesController {
   constructor(private readonly articlesService: ArticlesService) {}
 
   @Get()
-  listPublished() {
-    return this.articlesService.listPublished();
+  listPublished(
+    @Query('type') type?: ArticleType,
+    @Query('publicationType') publicationType?: PublicationType,
+    @Query('isFlash') isFlash?: string,
+  ) {
+    const parsedType =
+      type && Object.values(ArticleType).includes(type) ? type : undefined;
+    const parsedPublicationType =
+      publicationType && Object.values(PublicationType).includes(publicationType)
+        ? publicationType
+        : undefined;
+    const parsedIsFlash = isFlash === 'true' ? true : isFlash === 'false' ? false : undefined;
+    return this.articlesService.listPublished({
+      type: parsedType,
+      publicationType: parsedPublicationType,
+      isFlash: parsedIsFlash,
+    });
   }
 
   @UseGuards(JwtAuthGuard, PermissionGuard)
   @RequirePermission('content:read')
   @Get('admin')
-  listAll(@Query('status') status?: ContentStatus, @Query('search') search?: string) {
+  listAll(
+    @Query('status') status?: ContentStatus,
+    @Query('search') search?: string,
+    @Query('type') type?: ArticleType,
+    @Query('publicationType') publicationType?: PublicationType,
+  ) {
     const parsedStatus =
       status && Object.values(ContentStatus).includes(status)
         ? status
         : undefined;
-    return this.articlesService.listAll({ status: parsedStatus, search });
+    const parsedType =
+      type && Object.values(ArticleType).includes(type) ? type : undefined;
+    const parsedPublicationType =
+      publicationType && Object.values(PublicationType).includes(publicationType)
+        ? publicationType
+        : undefined;
+    return this.articlesService.listAll({
+      status: parsedStatus,
+      search,
+      type: parsedType,
+      publicationType: parsedPublicationType,
+    });
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionGuard)
+  @RequirePermission('content:read')
+  @Get('admin/:id')
+  getById(@Param('id') id: string) {
+    return this.articlesService.getById(id);
   }
 
   @Get(':slug')

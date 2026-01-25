@@ -26,6 +26,7 @@ export class EventsService {
     return this.prisma.event.findMany({
       where: { status: ContentStatus.PUBLISHED, publishedAt: { lte: new Date() } },
       orderBy: { startsAt: 'asc' },
+      include: { coverMedia: true },
     });
   }
 
@@ -40,8 +41,22 @@ export class EventsService {
     return this.prisma.event.findMany({ where, orderBy: { updatedAt: 'desc' } });
   }
 
+  async getById(id: string) {
+    const event = await this.prisma.event.findUnique({
+      where: { id },
+      include: { coverMedia: true },
+    });
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+    return event;
+  }
+
   async getBySlug(slug: string) {
-    const event = await this.prisma.event.findUnique({ where: { slug } });
+    const event = await this.prisma.event.findUnique({
+      where: { slug },
+      include: { coverMedia: true },
+    });
     if (!event || event.status !== ContentStatus.PUBLISHED) {
       throw new NotFoundException('Event not found');
     }
@@ -49,7 +64,8 @@ export class EventsService {
   }
 
   async create(input: EventCreateInput, actor: AuditContext) {
-    const slug = await this.ensureUniqueSlug(slugify(input.title));
+    const baseSlug = input.slug?.trim() ? input.slug.trim() : input.title;
+    const slug = await this.ensureUniqueSlug(slugify(baseSlug));
     const { status, publishedAt, scheduledAt } = this.normalizeStatus(input);
 
     const event = await this.prisma.event.create({
@@ -58,6 +74,8 @@ export class EventsService {
         slug,
         summary: input.summary ?? null,
         content: input.content,
+        metaTitle: input.metaTitle ?? null,
+        metaDescription: input.metaDescription ?? null,
         locationName: input.locationName ?? null,
         address: input.address ?? null,
         latitude: input.latitude ?? null,
@@ -94,7 +112,14 @@ export class EventsService {
       throw new NotFoundException('Event not found');
     }
 
-    const slug = input.title ? await this.ensureUniqueSlug(slugify(input.title), id) : undefined;
+    const slugSource = input.slug?.trim()
+      ? input.slug.trim()
+      : input.title
+        ? input.title
+        : undefined;
+    const slug = slugSource
+      ? await this.ensureUniqueSlug(slugify(slugSource), id)
+      : undefined;
     const { status, publishedAt, scheduledAt } = this.normalizeStatus(input, event);
 
     const updated = await this.prisma.event.update({
@@ -104,6 +129,9 @@ export class EventsService {
         slug: slug ?? event.slug,
         summary: input.summary !== undefined ? input.summary : event.summary,
         content: input.content !== undefined ? input.content : event.content,
+        metaTitle: input.metaTitle !== undefined ? input.metaTitle : event.metaTitle,
+        metaDescription:
+          input.metaDescription !== undefined ? input.metaDescription : event.metaDescription,
         locationName:
           input.locationName !== undefined ? input.locationName : event.locationName,
         address: input.address !== undefined ? input.address : event.address,

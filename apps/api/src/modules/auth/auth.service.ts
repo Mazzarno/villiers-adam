@@ -66,6 +66,28 @@ export class AuthService {
     return { id: user.id, email: user.email, role: user.role };
   }
 
+  async getProfile(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        mfaEnabled: true,
+        isActive: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return user;
+  }
+
   async login(input: LoginInput, actor?: AuditContext) {
     const user = await this.validateUser(input.email, input.password);
     if (user.mfaEnabled) {

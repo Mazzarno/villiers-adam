@@ -5,10 +5,6 @@ import { motion } from 'framer-motion';
 import {
   History,
   Search,
-  Filter,
-  User,
-  FileText,
-  Calendar,
   Loader2,
   ChevronDown,
 } from 'lucide-react';
@@ -28,7 +24,7 @@ import {
 } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { audit, type AuditLog } from '@/lib/api';
 import { formatDateTime, getInitials } from '@/lib/utils';
 
@@ -197,6 +193,7 @@ export default function AuditPage() {
                     label: log.action,
                     color: 'bg-gray-500/10 text-gray-700',
                   };
+                  const hasChanges = Boolean(log.changes);
                   const userName = log.user
                     ? `${log.user.firstName} ${log.user.lastName}`
                     : 'Système';
@@ -225,7 +222,7 @@ export default function AuditPage() {
                         <p className="text-sm text-muted-foreground mt-1">
                           ID: {log.entityId}
                         </p>
-                        {log.changes && (
+                        {hasChanges && (
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button

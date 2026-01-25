@@ -18,11 +18,22 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { HCaptchaWidget } from '@/components/forms/hcaptcha';
+import api from '@/lib/api';
 import { cn } from '@/lib/utils';
 
 // Données de démonstration
-const roomsData: Record<string, any> = {
+type RoomData = {
+  id: string;
+  name: string;
+  description: string;
+  capacity: number;
+  amenities: string[];
+  pricePerDay: number;
+  priceWeekend: number;
+};
+
+const roomsData: Record<string, RoomData> = {
   'salle-des-fetes': {
     id: '1',
     name: 'Salle des fêtes',
@@ -86,6 +97,9 @@ export default function ReservationRoomPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [step, setStep] = useState<'calendar' | 'form' | 'success'>('calendar');
   const [loading, setLoading] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState('');
+  const [error, setError] = useState('');
+  const siteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? '';
 
   const [formData, setFormData] = useState({
     name: '',
@@ -160,13 +174,51 @@ export default function ReservationRoomPage() {
 
     if (formData.honeypot) return;
 
+    if (siteKey && !captchaToken) {
+      setError('Veuillez valider le captcha avant d\'envoyer la demande.');
+      return;
+    }
+
+    if (!selectedDate) {
+      setError('Veuillez sélectionner une date avant d\'envoyer la demande.');
+      return;
+    }
+
     setLoading(true);
+    setError('');
 
-    // Simulation d'envoi
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      const startsAt = new Date(`${selectedDate}T00:00:00`);
+      const endsAt = new Date(`${selectedDate}T23:59:59`);
 
-    setLoading(false);
-    setStep('success');
+      const notes = [
+        formData.organization ? `Organisation : ${formData.organization}` : null,
+        formData.purpose ? `Objet : ${formData.purpose}` : null,
+        formData.attendees ? `Participants : ${formData.attendees}` : null,
+        formData.message ? `Message : ${formData.message}` : null,
+      ]
+        .filter(Boolean)
+        .join('\n');
+
+      await api.reservations.create({
+        roomId: room.id,
+        startsAt: startsAt.toISOString(),
+        endsAt: endsAt.toISOString(),
+        requesterName: formData.name,
+        requesterEmail: formData.email,
+        requesterPhone: formData.phone || undefined,
+        notes: notes || undefined,
+        captchaToken: captchaToken || null,
+      });
+
+      setStep('success');
+      setCaptchaToken('');
+      setError('');
+    } catch (err) {
+      setError('Une erreur est survenue. Veuillez réessayer.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const selectedDateObj = selectedDate ? new Date(selectedDate) : null;
@@ -217,23 +269,24 @@ export default function ReservationRoomPage() {
                   variant="outline"
                   onClick={() => {
                     setStep('calendar');
-                    setSelectedDate(null);
-                    setFormData({
-                      name: '',
-                      email: '',
-                      phone: '',
-                      organization: '',
-                      purpose: '',
-                      attendees: '',
-                      message: '',
-                      honeypot: '',
-                    });
-                  }}
-                >
+                      setSelectedDate(null);
+                      setFormData({
+                        name: '',
+                        email: '',
+                        phone: '',
+                        organization: '',
+                        purpose: '',
+                        attendees: '',
+                        message: '',
+                        honeypot: '',
+                      });
+                      setCaptchaToken('');
+                    }}
+                  >
                   Nouvelle réservation
                 </Button>
                 <Button asChild>
-                  <Link href="/">Retour à l'accueil</Link>
+                  <Link href="/">Retour à l&apos;accueil</Link>
                 </Button>
               </div>
             </CardContent>
@@ -467,6 +520,22 @@ export default function ReservationRoomPage() {
                           rows={4}
                         />
                       </div>
+
+                      {siteKey && (
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">
+                            Vérification anti-spam
+                          </label>
+                          <HCaptchaWidget
+                            siteKey={siteKey}
+                            onVerify={setCaptchaToken}
+                            onExpire={() => setCaptchaToken('')}
+                            onError={() => setCaptchaToken('')}
+                          />
+                        </div>
+                      )}
+
+                      {error && <p className="text-sm text-destructive">{error}</p>}
 
                       <div className="flex gap-4">
                         <Button

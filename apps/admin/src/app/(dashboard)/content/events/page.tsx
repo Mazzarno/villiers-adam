@@ -78,8 +78,8 @@ export default function EventsListPage() {
       cell: ({ row }) => (
         <div>
           <p className="font-medium">{row.original.title}</p>
-          {row.original.location && (
-            <p className="text-sm text-muted-foreground">{row.original.location}</p>
+          {row.original.locationName && (
+            <p className="text-sm text-muted-foreground">{row.original.locationName}</p>
           )}
         </div>
       ),

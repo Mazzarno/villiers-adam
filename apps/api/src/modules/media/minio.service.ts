@@ -15,10 +15,12 @@ export class MinioService implements OnModuleInit {
     const secretKey = config.get<string>('MINIO_SECRET_KEY') ?? 'minio_dev_secret';
 
     this.bucket = config.get<string>('MINIO_BUCKET') ?? 'mairie-media';
+    const useSSL = config.get<boolean>('MINIO_USE_SSL');
+
     this.client = new Client({
       endPoint,
       port,
-      useSSL: config.get<string>('NODE_ENV') === 'production',
+      useSSL: useSSL ?? config.get<string>('NODE_ENV') === 'production',
       accessKey,
       secretKey,
     });

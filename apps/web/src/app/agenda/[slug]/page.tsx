@@ -1,74 +1,15 @@
 import { Metadata } from 'next';
+import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Calendar, MapPin, Clock, ArrowLeft, Share2, CalendarPlus } from 'lucide-react';
+import { Calendar, MapPin, ArrowLeft, Share2, CalendarPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatDate, formatTime, cn } from '@/lib/utils';
-import { Event } from '@/lib/api';
+import api from '@/lib/api';
 
-// Données de démonstration
-const demoEvents: Event[] = [
-  {
-    id: '1',
-    title: 'Voeux du Maire à la population',
-    slug: 'voeux-maire-2025',
-    description: 'La municipalité vous convie à la cérémonie des voeux du Maire pour cette nouvelle année.',
-    content: `
-      <p>Le Maire et le Conseil municipal ont le plaisir de vous convier à la traditionnelle cérémonie des vœux de la nouvelle année.</p>
-
-      <p>Cette soirée sera l'occasion de dresser le bilan de l'année écoulée et de présenter les projets à venir pour notre commune.</p>
-
-      <h3>Programme</h3>
-      <ul>
-        <li>18h00 : Accueil</li>
-        <li>18h30 : Discours du Maire</li>
-        <li>19h00 : Verre de l'amitié</li>
-      </ul>
-
-      <p>Venez nombreux partager ce moment de convivialité !</p>
-    `,
-    startDate: '2025-01-26T18:00:00Z',
-    endDate: '2025-01-26T21:00:00Z',
-    allDay: false,
-    location: 'Salle des fêtes',
-    address: '1 Place de la Mairie, 95840 Villiers-Adam',
-    coordinates: { lat: 49.0833, lng: 2.3833 },
-    category: 'Cérémonie',
-    status: 'published',
-    createdAt: '2025-01-01T00:00:00Z',
-    updatedAt: '2025-01-01T00:00:00Z',
-  },
-  {
-    id: '2',
-    title: 'Atelier créatif enfants',
-    slug: 'atelier-creatif-fevrier',
-    description: 'Atelier de création artistique pour les enfants de 6 à 12 ans. Inscription obligatoire.',
-    content: `
-      <p>La bibliothèque municipale organise un atelier créatif pour les enfants pendant les vacances de février.</p>
-
-      <h3>Au programme</h3>
-      <p>Les enfants pourront laisser libre cours à leur imagination avec différentes techniques artistiques : peinture, collage, modelage...</p>
-
-      <h3>Informations pratiques</h3>
-      <ul>
-        <li>Âge : de 6 à 12 ans</li>
-        <li>Places limitées à 15 enfants</li>
-        <li>Matériel fourni</li>
-        <li>Inscription obligatoire à la bibliothèque</li>
-      </ul>
-    `,
-    startDate: '2025-02-08T14:00:00Z',
-    endDate: '2025-02-08T16:30:00Z',
-    allDay: false,
-    location: 'Bibliothèque municipale',
-    category: 'Jeunesse',
-    status: 'published',
-    createdAt: '2025-01-01T00:00:00Z',
-    updatedAt: '2025-01-01T00:00:00Z',
-  },
-];
+export const revalidate = 0;
 
 const categoryColors: Record<string, string> = {
   'Cérémonie': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
@@ -85,7 +26,7 @@ interface EventPageProps {
 
 export async function generateMetadata({ params }: EventPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const event = demoEvents.find((e) => e.slug === slug);
+  const event = await api.events.get(slug).catch(() => null);
 
   if (!event) {
     return { title: 'Événement non trouvé' };
@@ -105,7 +46,7 @@ export async function generateMetadata({ params }: EventPageProps): Promise<Meta
 
 export default async function EventPage({ params }: EventPageProps) {
   const { slug } = await params;
-  const event = demoEvents.find((e) => e.slug === slug);
+  const event = await api.events.get(slug).catch(() => null);
 
   if (!event) {
     notFound();
@@ -146,7 +87,7 @@ END:VCALENDAR`;
             className="inline-flex items-center gap-2 text-primary-foreground/80 hover:text-primary-foreground mb-6 transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
-            Retour à l'agenda
+            Retour à l&apos;agenda
           </Link>
 
           <div className="flex flex-wrap items-start gap-3 mb-4">
@@ -179,10 +120,13 @@ END:VCALENDAR`;
           <div className="lg:col-span-2">
             {event.featuredImage && (
               <div className="mb-8 rounded-lg overflow-hidden">
-                <img
+                <Image
                   src={event.featuredImage}
                   alt={event.title}
+                  width={1200}
+                  height={675}
                   className="w-full h-auto"
+                  sizes="100vw"
                 />
               </div>
             )}

@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { ColumnDef } from '@tanstack/react-table';
-import { MoreHorizontal, Plus, ArrowUpDown, Eye, Pencil, Trash2, Archive, Send } from 'lucide-react';
+import { MoreHorizontal, Plus, ArrowUpDown, Eye, Pencil, Trash2, Archive, Send, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -13,9 +13,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { DataTable } from '@/components/content/data-table';
 import { StatusBadge } from '@/components/content/status-badge';
-import { articles, type Article } from '@/lib/api';
+import { Badge } from '@/components/ui/badge';
+import { articles, type Article, type ArticleType, type PublicationType } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 
 const statusOptions = [
@@ -25,9 +33,29 @@ const statusOptions = [
   { label: 'Archivé', value: 'ARCHIVED' },
 ];
 
+const typeLabels: Record<ArticleType, string> = {
+  ACTUALITE: 'Actualité',
+  PUBLICATION: 'Publication',
+  BREVE: 'Brève',
+};
+
+const publicationLabels: Record<PublicationType, string> = {
+  ARRETE: 'Arrêté',
+  COMPTE_RENDU: 'Compte-rendu',
+  DELIBERATION: 'Délibération',
+};
+
+const typeColors: Record<ArticleType, 'default' | 'secondary' | 'info'> = {
+  ACTUALITE: 'default',
+  PUBLICATION: 'secondary',
+  BREVE: 'info',
+};
+
 export default function ArticlesListPage() {
   const [data, setData] = React.useState<Article[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [typeFilter, setTypeFilter] = React.useState<string>('all');
+  const [publicationFilter, setPublicationFilter] = React.useState<string>('all');
 
   React.useEffect(() => {
     loadArticles();
@@ -43,6 +71,17 @@ export default function ArticlesListPage() {
       setIsLoading(false);
     }
   };
+
+  const filteredData = React.useMemo(() => {
+    let filtered = data;
+    if (typeFilter !== 'all') {
+      filtered = filtered.filter((article) => article.type === typeFilter);
+    }
+    if (typeFilter === 'PUBLICATION' && publicationFilter !== 'all') {
+      filtered = filtered.filter((article) => article.publicationType === publicationFilter);
+    }
+    return filtered;
+  }, [data, typeFilter, publicationFilter]);
 
   const handlePublish = async (id: string) => {
     try {
@@ -86,10 +125,34 @@ export default function ArticlesListPage() {
       ),
       cell: ({ row }) => (
         <div>
-          <p className="font-medium">{row.original.title}</p>
-          {row.original.excerpt && (
+          <div className="flex items-center gap-2">
+            <p className="font-medium">{row.original.title}</p>
+            {row.original.isFlash && (
+              <Badge variant="warning" className="gap-1">
+                <Zap className="h-3 w-3" />
+                Flash
+              </Badge>
+            )}
+          </div>
+          {row.original.summary && (
             <p className="text-sm text-muted-foreground line-clamp-1">
-              {row.original.excerpt}
+              {row.original.summary}
+            </p>
+          )}
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'type',
+      header: 'Type',
+      cell: ({ row }) => (
+        <div className="space-y-1">
+          <Badge variant={typeColors[row.original.type] || 'default'}>
+            {typeLabels[row.original.type] || row.original.type}
+          </Badge>
+          {row.original.publicationType && (
+            <p className="text-xs text-muted-foreground">
+              {publicationLabels[row.original.publicationType]}
             </p>
           )}
         </div>
@@ -191,7 +254,7 @@ export default function ArticlesListPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Actualités</h1>
           <p className="text-muted-foreground">
-            Gérez les actualités et communiqués de votre mairie
+            Gérez les actualités, publications et brèves de votre mairie
           </p>
         </div>
         <Button asChild>
@@ -202,6 +265,43 @@ export default function ArticlesListPage() {
         </Button>
       </div>
 
+      {/* Type filter */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-muted-foreground">Type :</span>
+        <Select
+          value={typeFilter}
+          onValueChange={(value) => {
+            setTypeFilter(value);
+            if (value !== 'PUBLICATION') {
+              setPublicationFilter('all');
+            }
+          }}
+        >
+          <SelectTrigger className="w-[180px]">
+            <SelectValue placeholder="Tous les types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les types</SelectItem>
+            <SelectItem value="ACTUALITE">Actualités</SelectItem>
+            <SelectItem value="PUBLICATION">Publications</SelectItem>
+            <SelectItem value="BREVE">Brèves</SelectItem>
+          </SelectContent>
+        </Select>
+        {typeFilter === 'PUBLICATION' && (
+          <Select value={publicationFilter} onValueChange={setPublicationFilter}>
+            <SelectTrigger className="w-[200px]">
+              <SelectValue placeholder="Toutes les publications" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes</SelectItem>
+              <SelectItem value="ARRETE">Arrêtés</SelectItem>
+              <SelectItem value="COMPTE_RENDU">Comptes-rendus</SelectItem>
+              <SelectItem value="DELIBERATION">Délibérations</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
       {isLoading ? (
         <div className="flex h-96 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -209,7 +309,7 @@ export default function ArticlesListPage() {
       ) : (
         <DataTable
           columns={columns}
-          data={data}
+          data={filteredData}
           searchKey="title"
           searchPlaceholder="Rechercher une actualité..."
           filterColumn="status"

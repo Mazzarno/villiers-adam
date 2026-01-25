@@ -7,7 +7,6 @@ import {
   Bus,
   ChevronLeft,
   Phone,
-  Mail,
   ExternalLink,
   Clock,
   MapPin,

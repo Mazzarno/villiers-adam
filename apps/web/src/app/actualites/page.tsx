@@ -7,10 +7,8 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Calendar,
-  ChevronRight,
   FileText,
   Download,
-  Filter,
   X,
   Newspaper,
   FileWarning,
@@ -21,8 +19,8 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn, formatDate, truncate } from '@/lib/utils';
+import api, { type Article, type PublicationType as ApiPublicationType } from '@/lib/api';
 import {
-  demoNewsItems,
   type NewsItem,
   type ContentType,
   type PublicationType,
@@ -45,14 +43,58 @@ const publicationTypeFilters: { type: PublicationType; label: string; icon: Reac
   { type: 'deliberation', label: 'Délibérations', icon: FileCheck },
 ];
 
-export default function ActualitesPage() {
+const mapPublicationType = (value?: ApiPublicationType): PublicationType | undefined => {
+  switch (value) {
+    case 'ARRETE':
+      return 'arrete';
+    case 'COMPTE_RENDU':
+      return 'compte-rendu';
+    case 'DELIBERATION':
+      return 'deliberation';
+    default:
+      return undefined;
+  }
+};
+
+const mapArticleType = (value?: Article['type']): ContentType => {
+  switch (value) {
+    case 'PUBLICATION':
+      return 'publication';
+    case 'BREVE':
+      return 'breve';
+    case 'ACTUALITE':
+    default:
+      return 'actualite';
+  }
+};
+
+const mapArticleToNewsItem = (article: Article): NewsItem => ({
+  id: article.id,
+  slug: article.slug,
+  title: article.title,
+  type: mapArticleType(article.type),
+  publicationType: mapPublicationType(article.publicationType),
+  date: article.publishedAt || article.createdAt,
+  summary: article.excerpt || '',
+  content: article.content || '',
+  imageUrl: article.featuredImage,
+  tags: article.tags || [],
+  pdfUrl: article.documentUrl,
+  documentNumber: article.documentNumber,
+  meetingDate: article.meetingDate,
+  year: article.publicationYear,
+});
+
+
+function ActualitesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  const [items, setItems] = React.useState<NewsItem[]>([]);
 
   // États des filtres
   const [selectedType, setSelectedType] = React.useState<ContentType | 'all'>('all');
   const [selectedPubType, setSelectedPubType] = React.useState<PublicationType | null>(null);
-  const [showFilters, setShowFilters] = React.useState(false);
 
   // Initialiser depuis les params URL
   React.useEffect(() => {
@@ -66,6 +108,21 @@ export default function ActualitesPage() {
       setSelectedPubType(pubType);
     }
   }, [searchParams]);
+
+  React.useEffect(() => {
+    const loadArticles = async () => {
+      try {
+        const articles = await api.articles.list();
+        const mapped = articles.map((article) => mapArticleToNewsItem(article));
+        setItems(sortByDate(mapped));
+      } catch (error) {
+        console.error('Failed to load articles:', error);
+        setItems([]);
+      }
+    };
+
+    loadArticles();
+  }, []);
 
   // Mettre à jour l'URL quand les filtres changent
   const updateFilters = (type: ContentType | 'all', pubType: PublicationType | null) => {
@@ -82,26 +139,26 @@ export default function ActualitesPage() {
 
   // Filtrer les items
   const filteredItems = React.useMemo(() => {
-    let items = sortByDate(demoNewsItems);
+    let itemsToFilter = items;
 
     if (selectedType !== 'all') {
-      items = items.filter((item) => item.type === selectedType);
+      itemsToFilter = itemsToFilter.filter((item) => item.type === selectedType);
     }
 
     if (selectedType === 'publication' && selectedPubType) {
-      items = items.filter((item) => item.publicationType === selectedPubType);
+      itemsToFilter = itemsToFilter.filter((item) => item.publicationType === selectedPubType);
     }
 
-    return items;
-  }, [selectedType, selectedPubType]);
+    return itemsToFilter;
+  }, [items, selectedType, selectedPubType]);
 
   // Compteurs
   const counts = React.useMemo(() => ({
-    all: demoNewsItems.length,
-    actualite: demoNewsItems.filter((i) => i.type === 'actualite').length,
-    publication: demoNewsItems.filter((i) => i.type === 'publication').length,
-    breve: demoNewsItems.filter((i) => i.type === 'breve').length,
-  }), []);
+    all: items.length,
+    actualite: items.filter((i) => i.type === 'actualite').length,
+    publication: items.filter((i) => i.type === 'publication').length,
+    breve: items.filter((i) => i.type === 'breve').length,
+  }), [items]);
 
   return (
     <div className="min-h-screen">
@@ -246,6 +303,20 @@ export default function ActualitesPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+export default function ActualitesPage() {
+  return (
+    <React.Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+        </div>
+      }
+    >
+      <ActualitesContent />
+    </React.Suspense>
   );
 }
 

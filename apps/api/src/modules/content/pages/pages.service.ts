@@ -25,6 +25,7 @@ export class PagesService {
         publishedAt: { lte: new Date() },
       },
       orderBy: { publishedAt: 'desc' },
+      include: { coverMedia: true },
     });
   }
 
@@ -43,8 +44,22 @@ export class PagesService {
     });
   }
 
+  async getById(id: string) {
+    const page = await this.prisma.page.findUnique({
+      where: { id },
+      include: { coverMedia: true },
+    });
+    if (!page) {
+      throw new NotFoundException('Page not found');
+    }
+    return page;
+  }
+
   async getBySlug(slug: string) {
-    const page = await this.prisma.page.findUnique({ where: { slug } });
+    const page = await this.prisma.page.findUnique({
+      where: { slug },
+      include: { coverMedia: true },
+    });
     if (!page || page.status !== ContentStatus.PUBLISHED) {
       throw new NotFoundException('Page not found');
     }
@@ -52,7 +67,8 @@ export class PagesService {
   }
 
   async create(input: PageCreateInput, actor: AuditContext) {
-    const slug = await this.ensureUniqueSlug(slugify(input.title));
+    const baseSlug = input.slug?.trim() ? input.slug.trim() : input.title;
+    const slug = await this.ensureUniqueSlug(slugify(baseSlug));
     const { status, publishedAt, scheduledAt } = this.normalizeStatus(input);
 
     const page = await this.prisma.page.create({
@@ -61,6 +77,14 @@ export class PagesService {
         slug,
         summary: input.summary ?? null,
         content: input.content,
+        blocks: input.blocks ?? null,
+        metaTitle: input.metaTitle ?? null,
+        metaDescription: input.metaDescription ?? null,
+        menuTitle: input.menuTitle ?? null,
+        showInMenu: input.showInMenu ?? false,
+        menuOrder: input.menuOrder ?? 0,
+        parentId: input.parentId ?? null,
+        template: input.template ?? null,
         status,
         publishedAt,
         scheduledAt,
@@ -91,7 +115,14 @@ export class PagesService {
       throw new NotFoundException('Page not found');
     }
 
-    const slug = input.title ? await this.ensureUniqueSlug(slugify(input.title), id) : undefined;
+    const slugSource = input.slug?.trim()
+      ? input.slug.trim()
+      : input.title
+        ? input.title
+        : undefined;
+    const slug = slugSource
+      ? await this.ensureUniqueSlug(slugify(slugSource), id)
+      : undefined;
     const { status, publishedAt, scheduledAt } = this.normalizeStatus(input, page);
 
     const updated = await this.prisma.page.update({
@@ -101,6 +132,15 @@ export class PagesService {
         slug: slug ?? page.slug,
         summary: input.summary !== undefined ? input.summary : page.summary,
         content: input.content !== undefined ? input.content : page.content,
+        blocks: input.blocks !== undefined ? input.blocks : page.blocks,
+        metaTitle: input.metaTitle !== undefined ? input.metaTitle : page.metaTitle,
+        metaDescription:
+          input.metaDescription !== undefined ? input.metaDescription : page.metaDescription,
+        menuTitle: input.menuTitle !== undefined ? input.menuTitle : page.menuTitle,
+        showInMenu: input.showInMenu !== undefined ? input.showInMenu : page.showInMenu,
+        menuOrder: input.menuOrder !== undefined ? input.menuOrder : page.menuOrder,
+        parentId: input.parentId !== undefined ? input.parentId : page.parentId,
+        template: input.template !== undefined ? input.template : page.template,
         status,
         publishedAt,
         scheduledAt,

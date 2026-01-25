@@ -39,6 +39,13 @@ const sections = [
     color: 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/30 dark:border-blue-900',
   },
   {
+    slug: 'commerces',
+    title: 'Commerces & entreprises',
+    description: 'Annuaire des commerces et sociétés locales',
+    icon: Building,
+    color: 'bg-villiers-gold/10 text-villiers-gold border-villiers-gold/20',
+  },
+  {
     slug: 'urbanisme',
     title: 'Urbanisme',
     description: 'Permis de construire, autorisations de travaux et PLU',
@@ -92,7 +99,7 @@ export default function VieQuotidiennePage() {
             </h1>
             <p className="text-lg text-muted-foreground leading-relaxed">
               Toutes les informations pratiques pour votre vie à Villiers-Adam :
-              services de proximité, école, transports et démarches d'urbanisme.
+              services de proximité, école, transports et démarches d&apos;urbanisme.
             </p>
           </motion.div>
         </div>

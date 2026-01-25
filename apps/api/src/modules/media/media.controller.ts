@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Response } from 'express';
 import { Request } from 'express';
 
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
@@ -57,5 +58,16 @@ export class MediaController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.mediaService.remove(id);
+  }
+
+  /**
+   * Public route to serve media files.
+   * Redirects to a presigned URL from MinIO.
+   * The storageKey includes the path (e.g., "2024/01/uuid-filename.jpg")
+   */
+  @Get('public/*')
+  async servePublic(@Param('0') storageKey: string, @Res() res: Response) {
+    const { url } = await this.mediaService.getPublicUrl(storageKey);
+    return res.redirect(url);
   }
 }

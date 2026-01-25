@@ -74,6 +74,17 @@ export class MediaService {
     return { url };
   }
 
+  async getPublicUrl(storageKey: string) {
+    const media = await this.prisma.media.findFirst({
+      where: { storageKey },
+    });
+    if (!media) {
+      throw new NotFoundException('Media not found');
+    }
+    const url = await this.minio.presignedGetObject(storageKey);
+    return { url, media };
+  }
+
   async remove(id: string) {
     const media = await this.getById(id);
     await this.minio.removeObject(media.storageKey);
@@ -100,6 +111,6 @@ export class MediaService {
   }
 
   private buildPublicUrl(storageKey: string) {
-    return `/media/${storageKey}`;
+    return `/media/public/${storageKey}`;
   }
 }

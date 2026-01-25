@@ -21,6 +21,10 @@ import { HealthModule } from './modules/health/health.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
 import { FormsModule } from './modules/forms/forms.module';
 import { ExportModule } from './modules/export/export.module';
+import { PrivacyModule } from './modules/privacy/privacy.module';
+import { CouncilModule } from './modules/council/council.module';
+import { MunicipalServicesModule } from './modules/municipal-services/municipal-services.module';
+import { TransportsModule } from './modules/transports/transports.module';
 
 @Module({
   imports: [
@@ -64,8 +68,12 @@ import { ExportModule } from './modules/export/export.module';
     ReservationsModule,
     FormsModule,
     ExportModule,
+    PrivacyModule,
     SettingsModule,
     AuditModule,
+    CouncilModule,
+    MunicipalServicesModule,
+    TransportsModule,
   ],
 })
 export class AppModule {}

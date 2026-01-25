@@ -2,7 +2,6 @@ import { Metadata } from 'next';
 import dynamic from 'next/dynamic';
 import { MapPin, Building2, GraduationCap, Heart, Store, Dumbbell } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 
 export const metadata: Metadata = {
   title: 'Carte interactive',
@@ -139,7 +138,7 @@ export default function CartePage() {
             {/* Points list */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Points d'intérêt</CardTitle>
+                <CardTitle className="text-lg">Points d&apos;intérêt</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {markers.map((marker) => (
@@ -175,7 +174,7 @@ export default function CartePage() {
                 <ul className="text-sm text-muted-foreground space-y-1">
                   <li>Cliquez sur un marqueur pour voir les détails du lieu</li>
                   <li>Utilisez les boutons + et - pour zoomer</li>
-                  <li>Cliquez sur l'icône de localisation pour afficher votre position</li>
+                  <li>Cliquez sur l&apos;icône de localisation pour afficher votre position</li>
                   <li>Maintenez et faites glisser pour déplacer la carte</li>
                 </ul>
               </div>

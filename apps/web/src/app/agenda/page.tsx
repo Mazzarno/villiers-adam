@@ -1,102 +1,19 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import { Calendar, MapPin, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, MapPin, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { formatDate, formatTime, cn } from '@/lib/utils';
+import { formatTime, cn } from '@/lib/utils';
 import { Event } from '@/lib/api';
+import api from '@/lib/api';
+
+export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: 'Agenda',
   description: 'Découvrez les événements et manifestations à Villiers-Adam.',
 };
-
-// Données de démonstration
-const demoEvents: Event[] = [
-  {
-    id: '1',
-    title: 'Voeux du Maire à la population',
-    slug: 'voeux-maire-2025',
-    description: 'La municipalité vous convie à la cérémonie des voeux du Maire pour cette nouvelle année.',
-    startDate: '2025-01-26T18:00:00Z',
-    allDay: false,
-    location: 'Salle des fêtes',
-    address: '1 Place de la Mairie, 95840 Villiers-Adam',
-    category: 'Cérémonie',
-    status: 'published',
-    createdAt: '2025-01-01T00:00:00Z',
-    updatedAt: '2025-01-01T00:00:00Z',
-  },
-  {
-    id: '2',
-    title: 'Atelier créatif enfants',
-    slug: 'atelier-creatif-fevrier',
-    description: 'Atelier de création artistique pour les enfants de 6 à 12 ans. Inscription obligatoire.',
-    startDate: '2025-02-08T14:00:00Z',
-    endDate: '2025-02-08T16:30:00Z',
-    allDay: false,
-    location: 'Bibliothèque municipale',
-    category: 'Jeunesse',
-    status: 'published',
-    createdAt: '2025-01-01T00:00:00Z',
-    updatedAt: '2025-01-01T00:00:00Z',
-  },
-  {
-    id: '3',
-    title: 'Marché de producteurs',
-    slug: 'marche-producteurs-fevrier',
-    description: 'Rendez-vous mensuel avec les producteurs locaux du Vexin français.',
-    startDate: '2025-02-15T09:00:00Z',
-    endDate: '2025-02-15T13:00:00Z',
-    allDay: false,
-    location: 'Place de la Mairie',
-    category: 'Marché',
-    status: 'published',
-    createdAt: '2025-01-01T00:00:00Z',
-    updatedAt: '2025-01-01T00:00:00Z',
-  },
-  {
-    id: '4',
-    title: 'Conseil municipal',
-    slug: 'conseil-municipal-fevrier',
-    description: 'Séance publique du conseil municipal. Ordre du jour disponible en mairie.',
-    startDate: '2025-02-20T20:00:00Z',
-    allDay: false,
-    location: 'Salle du conseil',
-    category: 'Institutionnel',
-    status: 'published',
-    createdAt: '2025-01-01T00:00:00Z',
-    updatedAt: '2025-01-01T00:00:00Z',
-  },
-  {
-    id: '5',
-    title: 'Carnaval des enfants',
-    slug: 'carnaval-enfants-2025',
-    description: 'Défilé costumé dans les rues du village suivi d\'un goûter.',
-    startDate: '2025-03-01T14:30:00Z',
-    allDay: false,
-    location: 'Départ place de l\'Église',
-    category: 'Fête',
-    status: 'published',
-    createdAt: '2025-01-01T00:00:00Z',
-    updatedAt: '2025-01-01T00:00:00Z',
-  },
-  {
-    id: '6',
-    title: 'Bourse aux vêtements',
-    slug: 'bourse-vetements-printemps',
-    description: 'Bourse aux vêtements enfants et adultes organisée par l\'association des parents d\'élèves.',
-    startDate: '2025-03-15T09:00:00Z',
-    endDate: '2025-03-15T17:00:00Z',
-    allDay: false,
-    location: 'Salle des fêtes',
-    category: 'Brocante',
-    status: 'published',
-    createdAt: '2025-01-01T00:00:00Z',
-    updatedAt: '2025-01-01T00:00:00Z',
-  },
-];
 
 const categoryColors: Record<string, string> = {
   'Cérémonie': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
@@ -128,8 +45,19 @@ function getMonthName(key: string) {
   return date.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
 }
 
-export default function AgendaPage() {
-  const groupedEvents = groupEventsByMonth(demoEvents);
+async function getAgendaEvents() {
+  try {
+    const events = await api.events.list();
+    return events;
+  } catch (error) {
+    console.error('Failed to load events:', error);
+    return [];
+  }
+}
+
+export default async function AgendaPage() {
+  const events = await getAgendaEvents();
+  const groupedEvents = groupEventsByMonth(events);
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -184,7 +112,7 @@ export default function AgendaPage() {
 
                   return (
                     <Link key={event.id} href={`/agenda/${event.slug}`}>
-                      <Card className="group hover:shadow-lg transition-all hover:-translate-y-1">
+                      <Card className="group hover:shadow-lg transition-all hover:-translate-y-1 my-4">
                         <CardContent className="p-0">
                           <div className="flex">
                             {/* Date badge */}

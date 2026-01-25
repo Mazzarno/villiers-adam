@@ -1,19 +1,31 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { FormStatus, FormType } from '@prisma/client';
 
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { HcaptchaService } from '../../common/security/hcaptcha.service';
 import { EmailService } from '../email/email.service';
 import { FormCreateInput, FormStatusInput } from './dto/forms.schemas';
 
 @Injectable()
 export class FormsService {
+  private readonly logger = new Logger(FormsService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly emailService: EmailService,
+    private readonly hcaptchaService: HcaptchaService,
   ) {}
 
   async submit(input: FormCreateInput, ip?: string, userAgent?: string) {
     const isBot = Boolean(input.website && input.website.trim().length > 0);
+
+    if (!isBot) {
+      const captchaValid = await this.hcaptchaService.verifyToken(input.captchaToken ?? undefined, ip);
+      if (!captchaValid) {
+        this.logger.warn(`Form submission blocked (captcha invalid) from ${ip ?? 'unknown IP'}`);
+        throw new BadRequestException('Captcha verification failed');
+      }
+    }
 
     const submission = await this.prisma.formSubmission.create({
       data: {

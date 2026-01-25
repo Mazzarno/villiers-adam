@@ -1,7 +1,6 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -17,7 +16,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { auth } from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
 import Link from 'next/link';
 
 const loginSchema = z.object({
@@ -33,7 +32,7 @@ type LoginForm = z.infer<typeof loginSchema>;
 type MfaForm = z.infer<typeof mfaSchema>;
 
 export default function LoginPage() {
-  const router = useRouter();
+  const { login, verifyMfa } = useAuth();
   const [step, setStep] = React.useState<'login' | 'mfa'>('login');
   const [mfaToken, setMfaToken] = React.useState<string>('');
   const [error, setError] = React.useState<string>('');
@@ -54,15 +53,11 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const result = await auth.login(data.email, data.password);
+      const result = await login(data.email, data.password);
 
-      if (result.requireMfa && result.mfaToken) {
+      if (result?.requireMfa && result.mfaToken) {
         setMfaToken(result.mfaToken);
         setStep('mfa');
-      } else if (result.accessToken && result.refreshToken) {
-        localStorage.setItem('accessToken', result.accessToken);
-        localStorage.setItem('refreshToken', result.refreshToken);
-        router.push('/');
       }
     } catch (err) {
       setError('Email ou mot de passe incorrect');
@@ -76,10 +71,7 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const result = await auth.verifyMfa(mfaToken, data.code);
-      localStorage.setItem('accessToken', result.accessToken);
-      localStorage.setItem('refreshToken', result.refreshToken);
-      router.push('/');
+      await verifyMfa(mfaToken, data.code);
     } catch (err) {
       setError('Code de vérification invalide');
     } finally {

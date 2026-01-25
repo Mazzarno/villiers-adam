@@ -37,6 +37,13 @@ export class PagesController {
     return this.pagesService.listAll({ status: parsedStatus, search });
   }
 
+  @UseGuards(JwtAuthGuard, PermissionGuard)
+  @RequirePermission('content:read')
+  @Get('admin/:id')
+  getById(@Param('id') id: string) {
+    return this.pagesService.getById(id);
+  }
+
   @Get(':slug')
   getBySlug(@Param('slug') slug: string) {
     return this.pagesService.getBySlug(slug);

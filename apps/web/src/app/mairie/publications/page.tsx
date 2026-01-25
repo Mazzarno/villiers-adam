@@ -6,13 +6,8 @@ import { motion } from 'framer-motion';
 import { FileText, FileWarning, FileCheck, ChevronRight } from 'lucide-react';
 import { DocumentList } from '@/components/publications/document-card';
 import { YearFilter } from '@/components/publications/year-filter';
-import {
-  demoNewsItems,
-  filterByType,
-  filterByYear,
-  sortByDate,
-  getAvailableYears,
-} from '@/lib/data/news';
+import api, { type Article, type PublicationType as ApiPublicationType } from '@/lib/api';
+import { filterByYear, getAvailableYears, sortByDate, type NewsItem } from '@/lib/data/news';
 
 const publicationCategories = [
   {
@@ -40,15 +35,59 @@ const publicationCategories = [
 
 export default function PublicationsPage() {
   const [selectedYear, setSelectedYear] = React.useState<number | null>(null);
+  const [publications, setPublications] = React.useState<NewsItem[]>([]);
+
+  const mapPublicationType = React.useCallback((value?: ApiPublicationType) => {
+    switch (value) {
+      case 'ARRETE':
+        return 'arrete';
+      case 'COMPTE_RENDU':
+        return 'compte-rendu';
+      case 'DELIBERATION':
+        return 'deliberation';
+      default:
+        return undefined;
+    }
+  }, []);
+
+  const mapArticleToNewsItem = React.useCallback((article: Article): NewsItem => ({
+    id: article.id,
+    slug: article.slug,
+    title: article.title,
+    type: 'publication',
+    publicationType: mapPublicationType(article.publicationType),
+    date: article.publishedAt || article.createdAt,
+    summary: article.excerpt || '',
+    content: article.content || '',
+    imageUrl: article.featuredImage,
+    tags: article.tags || [],
+    pdfUrl: article.documentUrl,
+    documentNumber: article.documentNumber,
+    meetingDate: article.meetingDate,
+    year: article.publicationYear,
+  }), [mapPublicationType]);
+
+  React.useEffect(() => {
+    const load = async () => {
+      try {
+        const articles = await api.articles.list({ type: 'PUBLICATION' });
+        setPublications(sortByDate(articles.map(mapArticleToNewsItem)));
+      } catch (error) {
+        console.error('Failed to load publications:', error);
+        setPublications([]);
+      }
+    };
+
+    load();
+  }, [mapArticleToNewsItem]);
 
   // Récupérer toutes les publications
-  const allPublications = sortByDate(filterByType(demoNewsItems, 'publication'));
-  const availableYears = getAvailableYears(allPublications);
+  const availableYears = getAvailableYears(publications);
 
   // Filtrer par année si sélectionnée
   const filteredPublications = selectedYear
-    ? filterByYear(allPublications, selectedYear)
-    : allPublications;
+    ? filterByYear(publications, selectedYear)
+    : publications;
 
   // Dernières publications (5 max)
   const recentPublications = filteredPublications.slice(0, 5);

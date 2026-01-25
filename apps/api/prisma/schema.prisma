@@ -58,6 +58,25 @@ enum FormStatus {
   CLOSED
 }
 
+enum ArticleType {
+  ACTUALITE
+  PUBLICATION
+  BREVE
+}
+
+enum PublicationType {
+  ARRETE
+  COMPTE_RENDU
+  DELIBERATION
+}
+
+enum CouncilMemberRole {
+  MAIRE
+  ADJOINT
+  CONSEILLER
+  CONSEILLER_DELEGUE
+}
+
 enum AuditAction {
   CREATE
   UPDATE
@@ -96,6 +115,12 @@ model User {
   updatedDirectoryEntries DirectoryEntry[] @relation("DirectoryUpdatedBy")
   createdProcedures      Procedure[]      @relation("ProcedureCreatedBy")
   updatedProcedures      Procedure[]      @relation("ProcedureUpdatedBy")
+  createdCouncilMembers  CouncilMember[]  @relation("CouncilCreatedBy")
+  updatedCouncilMembers  CouncilMember[]  @relation("CouncilUpdatedBy")
+  createdMunicipalServices MunicipalService[] @relation("ServiceCreatedBy")
+  updatedMunicipalServices MunicipalService[] @relation("ServiceUpdatedBy")
+  createdTransportInfos  TransportInfo[]  @relation("TransportCreatedBy")
+  updatedTransportInfos  TransportInfo[]  @relation("TransportUpdatedBy")
   reservationsHandled    Reservation[]    @relation("ReservationHandledBy")
   createdMedia           Media[]          @relation("MediaCreatedBy")
   sessions               Session[]
@@ -114,6 +139,14 @@ model Page {
   slug         String        @unique
   summary      String?
   content      Json
+  blocks       Json?
+  metaTitle    String?
+  metaDescription String?
+  menuTitle    String?
+  showInMenu   Boolean       @default(false)
+  menuOrder    Int           @default(0)
+  parentId     String?
+  template     String?
   status       ContentStatus @default(DRAFT)
   publishedAt  DateTime?
   scheduledAt  DateTime?
@@ -125,11 +158,14 @@ model Page {
 
   createdBy User   @relation("PageCreatedBy", fields: [createdById], references: [id])
   updatedBy User?  @relation("PageUpdatedBy", fields: [updatedById], references: [id])
+  parent   Page?   @relation("PageHierarchy", fields: [parentId], references: [id])
+  children Page[]  @relation("PageHierarchy")
   coverMedia Media? @relation("PageCoverMedia", fields: [coverMediaId], references: [id])
   media      PageMedia[]
 
   @@index([status, publishedAt])
   @@index([scheduledAt])
+  @@index([parentId])
 }
 
 model Article {
@@ -138,6 +174,14 @@ model Article {
   slug         String        @unique
   summary      String?
   content      Json
+  metaTitle    String?
+  metaDescription String?
+  type         ArticleType   @default(ACTUALITE)
+  publicationType PublicationType?
+  documentMediaId String?
+  documentNumber String?
+  meetingDate  DateTime?
+  publicationYear Int?
   isFlash      Boolean       @default(false)
   status       ContentStatus @default(DRAFT)
   publishedAt  DateTime?
@@ -151,6 +195,7 @@ model Article {
   createdBy User   @relation("ArticleCreatedBy", fields: [createdById], references: [id])
   updatedBy User?  @relation("ArticleUpdatedBy", fields: [updatedById], references: [id])
   coverMedia Media? @relation("ArticleCoverMedia", fields: [coverMediaId], references: [id])
+  documentMedia Media? @relation("ArticleDocumentMedia", fields: [documentMediaId], references: [id])
   media      ArticleMedia[]
 
   @@index([status, publishedAt])
@@ -163,6 +208,8 @@ model Event {
   slug         String        @unique
   summary      String?
   content      Json
+  metaTitle    String?
+  metaDescription String?
   locationName String?
   address      String?
   latitude     Float?
@@ -275,6 +322,90 @@ model Procedure {
   @@index([scheduledAt])
 }
 
+model CouncilMember {
+  id           String             @id @default(cuid())
+  name         String
+  role         CouncilMemberRole
+  roleTitle    String?
+  delegations  String?
+  bio          String?
+  email        String?
+  phone        String?
+  order        Int                @default(0)
+  status       ContentStatus      @default(DRAFT)
+  publishedAt  DateTime?
+  scheduledAt  DateTime?
+  photoMediaId String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  createdById  String
+  updatedById  String?
+
+  createdBy User   @relation("CouncilCreatedBy", fields: [createdById], references: [id])
+  updatedBy User?  @relation("CouncilUpdatedBy", fields: [updatedById], references: [id])
+  photoMedia Media? @relation("CouncilMemberPhoto", fields: [photoMediaId], references: [id])
+
+  @@index([role])
+  @@index([status, publishedAt])
+  @@index([scheduledAt])
+}
+
+model MunicipalService {
+  id           String        @id @default(cuid())
+  name         String
+  slug         String        @unique
+  description  String?
+  category     String?
+  openingHours Json?
+  address      String?
+  phone        String?
+  email        String?
+  website      String?
+  order        Int           @default(0)
+  status       ContentStatus @default(DRAFT)
+  publishedAt  DateTime?
+  scheduledAt  DateTime?
+  coverMediaId String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  createdById  String
+  updatedById  String?
+
+  createdBy User   @relation("ServiceCreatedBy", fields: [createdById], references: [id])
+  updatedBy User?  @relation("ServiceUpdatedBy", fields: [updatedById], references: [id])
+  coverMedia Media? @relation("ServiceCoverMedia", fields: [coverMediaId], references: [id])
+
+  @@index([status, publishedAt])
+  @@index([scheduledAt])
+  @@index([category])
+}
+
+model TransportInfo {
+  id           String        @id @default(cuid())
+  title        String
+  slug         String        @unique
+  summary      String?
+  content      Json
+  operator     String?
+  website      String?
+  phone        String?
+  status       ContentStatus @default(DRAFT)
+  publishedAt  DateTime?
+  scheduledAt  DateTime?
+  coverMediaId String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  createdById  String
+  updatedById  String?
+
+  createdBy User   @relation("TransportCreatedBy", fields: [createdById], references: [id])
+  updatedBy User?  @relation("TransportUpdatedBy", fields: [updatedById], references: [id])
+  coverMedia Media? @relation("TransportCoverMedia", fields: [coverMediaId], references: [id])
+
+  @@index([status, publishedAt])
+  @@index([scheduledAt])
+}
+
 model Media {
   id         String    @id @default(cuid())
   title      String?
@@ -295,9 +426,13 @@ model Media {
 
   pageCovers      Page[]           @relation("PageCoverMedia")
   articleCovers   Article[]        @relation("ArticleCoverMedia")
+  articleDocuments Article[]       @relation("ArticleDocumentMedia")
   eventCovers     Event[]          @relation("EventCoverMedia")
   procedureCovers Procedure[]      @relation("ProcedureCoverMedia")
   directoryCovers DirectoryEntry[] @relation("DirectoryCoverMedia")
+  councilPhotos   CouncilMember[]  @relation("CouncilMemberPhoto")
+  serviceCovers   MunicipalService[] @relation("ServiceCoverMedia")
+  transportCovers TransportInfo[]  @relation("TransportCoverMedia")
 
   pageMedia       PageMedia[]
   articleMedia    ArticleMedia[]

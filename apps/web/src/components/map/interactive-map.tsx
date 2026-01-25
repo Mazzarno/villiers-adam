@@ -42,9 +42,12 @@ export function InteractiveMap({
   onMarkerClick,
 }: InteractiveMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
+  const mapInstanceRef = useRef<import('leaflet').Map | null>(null);
+  const initialCenter = useRef(center);
+  const initialZoom = useRef(zoom);
+  const initialMarkers = useRef(markers);
+  const initialOnMarkerClick = useRef(onMarkerClick);
   const [isLoaded, setIsLoaded] = useState(false);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
     // Chargement dynamique de Leaflet côté client uniquement
@@ -52,14 +55,13 @@ export function InteractiveMap({
       if (typeof window === 'undefined') return;
 
       const L = (await import('leaflet')).default;
-      await import('leaflet/dist/leaflet.css');
 
       if (!mapRef.current || mapInstanceRef.current) return;
 
       // Initialisation de la carte
       const map = L.map(mapRef.current, {
-        center: [center.lat, center.lng],
-        zoom,
+        center: [initialCenter.current.lat, initialCenter.current.lng],
+        zoom: initialZoom.current,
         zoomControl: false,
         attributionControl: true,
       });
@@ -108,7 +110,7 @@ export function InteractiveMap({
       };
 
       // Ajout des marqueurs
-      markers.forEach((marker) => {
+      initialMarkers.current.forEach((marker) => {
         const color = categoryColors[marker.icon || 'default'] || categoryColors.default;
         const icon = createIcon(color);
 
@@ -125,8 +127,8 @@ export function InteractiveMap({
 
         leafletMarker.bindPopup(popupContent);
 
-        if (onMarkerClick) {
-          leafletMarker.on('click', () => onMarkerClick(marker));
+        if (initialOnMarkerClick.current) {
+          leafletMarker.on('click', () => initialOnMarkerClick.current?.(marker));
         }
       });
 
@@ -172,34 +174,34 @@ export function InteractiveMap({
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        setUserLocation({ lat: latitude, lng: longitude });
-
         if (mapInstanceRef.current) {
-          const L = require('leaflet');
+          import('leaflet').then((L) => {
+            if (!mapInstanceRef.current) return;
 
-          // Centrer sur la position
-          mapInstanceRef.current.setView([latitude, longitude], 16);
+            // Centrer sur la position
+            mapInstanceRef.current.setView([latitude, longitude], 16);
 
-          // Ajouter un marqueur de position
-          const userIcon = L.divIcon({
-            className: 'user-location-marker',
-            html: `
-              <div style="
-                background-color: #3b82f6;
-                width: 16px;
-                height: 16px;
-                border-radius: 50%;
-                border: 3px solid white;
-                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3), 0 2px 5px rgba(0,0,0,0.3);
-              "></div>
-            `,
-            iconSize: [16, 16],
-            iconAnchor: [8, 8],
+            // Ajouter un marqueur de position
+            const userIcon = L.divIcon({
+              className: 'user-location-marker',
+              html: `
+                <div style="
+                  background-color: #3b82f6;
+                  width: 16px;
+                  height: 16px;
+                  border-radius: 50%;
+                  border: 3px solid white;
+                  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3), 0 2px 5px rgba(0,0,0,0.3);
+                "></div>
+              `,
+              iconSize: [16, 16],
+              iconAnchor: [8, 8],
+            });
+
+            L.marker([latitude, longitude], { icon: userIcon })
+              .addTo(mapInstanceRef.current)
+              .bindPopup('Votre position');
           });
-
-          L.marker([latitude, longitude], { icon: userIcon })
-            .addTo(mapInstanceRef.current)
-            .bindPopup('Votre position');
         }
       },
       () => {

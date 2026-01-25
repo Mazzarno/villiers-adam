@@ -1,22 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { motion } from 'framer-motion';
-import {
-  Save,
-  Loader2,
-  Palette,
-  Globe,
-  Phone,
-  Clock,
-  Share2,
-  Accessibility,
-  Upload,
-  X,
-} from 'lucide-react';
+import { ColumnDef } from '@tanstack/react-table';
+import { Save, UserPlus, Pencil, Trash2, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,487 +15,525 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Separator } from '@/components/ui/separator';
-import { settings as settingsApi, type Settings } from '@/lib/api';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { DataTable } from '@/components/content/data-table';
+import { Badge } from '@/components/ui/badge';
+import { settings as settingsApi, users, type User } from '@/lib/api';
+import { useAuth } from '@/lib/auth-context';
 import { toast } from 'sonner';
 
-const settingsSchema = z.object({
-  siteName: z.string().min(1, 'Le nom du site est requis'),
-  siteDescription: z.string().optional(),
-  primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Couleur invalide'),
-  secondaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Couleur invalide'),
-  logoUrl: z.string().optional(),
-  faviconUrl: z.string().optional(),
-  fontHeading: z.string(),
-  fontBody: z.string(),
-  seniorModeEnabled: z.boolean(),
-  dyslexicModeEnabled: z.boolean(),
-  darkModeEnabled: z.boolean(),
-  address: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().email().optional().or(z.literal('')),
-  facebookUrl: z.string().url().optional().or(z.literal('')),
-  twitterUrl: z.string().url().optional().or(z.literal('')),
-  instagramUrl: z.string().url().optional().or(z.literal('')),
-});
-
-type SettingsForm = z.infer<typeof settingsSchema>;
-
-const fonts = [
-  { value: 'Inter', label: 'Inter' },
-  { value: 'Marianne', label: 'Marianne' },
-  { value: 'Source Sans Pro', label: 'Source Sans Pro' },
-  { value: 'Open Sans', label: 'Open Sans' },
-  { value: 'Roboto', label: 'Roboto' },
+const roleOptions = [
+  { label: 'Super admin', value: 'SUPER_ADMIN' },
+  { label: 'Admin mairie', value: 'ADMIN_MAIRIE' },
+  { label: 'Agent', value: 'AGENT' },
+  { label: 'Contributeur', value: 'CONTRIBUTOR' },
+  { label: 'Lecteur', value: 'READER' },
 ];
 
-const container = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 },
-  },
+type AccountForm = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
 };
 
-const item = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0 },
+type UserForm = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: User['role'];
+  isActive: boolean;
+  password: string;
+};
+
+type SiteForm = {
+  siteName: string;
+  contactEmail: string;
+  contactPhone: string;
+  address: string;
+};
+
+const defaultUserForm: UserForm = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  role: 'READER',
+  isActive: true,
+  password: '',
 };
 
 export default function SettingsPage() {
+  const { user, refreshUser } = useAuth();
   const [isLoading, setIsLoading] = React.useState(true);
-  const [isSaving, setIsSaving] = React.useState(false);
-
-  const form = useForm<SettingsForm>({
-    resolver: zodResolver(settingsSchema),
-    defaultValues: {
-      siteName: '',
-      siteDescription: '',
-      primaryColor: '#1e40af',
-      secondaryColor: '#3b82f6',
-      logoUrl: '',
-      faviconUrl: '',
-      fontHeading: 'Inter',
-      fontBody: 'Inter',
-      seniorModeEnabled: true,
-      dyslexicModeEnabled: true,
-      darkModeEnabled: true,
-      address: '',
-      phone: '',
-      email: '',
-      facebookUrl: '',
-      twitterUrl: '',
-      instagramUrl: '',
-    },
+  const [isSavingAccount, setIsSavingAccount] = React.useState(false);
+  const [isSavingSite, setIsSavingSite] = React.useState(false);
+  const [accountForm, setAccountForm] = React.useState<AccountForm>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    password: '',
   });
+  const [siteForm, setSiteForm] = React.useState<SiteForm>({
+    siteName: '',
+    contactEmail: '',
+    contactPhone: '',
+    address: '',
+  });
+  const [usersData, setUsersData] = React.useState<User[]>([]);
+  const [usersLoading, setUsersLoading] = React.useState(true);
+  const [userDialogOpen, setUserDialogOpen] = React.useState(false);
+  const [editingUser, setEditingUser] = React.useState<User | null>(null);
+  const [userForm, setUserForm] = React.useState<UserForm>(defaultUserForm);
+  const [isSavingUser, setIsSavingUser] = React.useState(false);
 
   React.useEffect(() => {
+    if (user) {
+      setAccountForm({
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        password: '',
+      });
+    }
+  }, [user]);
+
+  React.useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const data = await settingsApi.get();
+        const addressValue = data.address ? JSON.stringify(data.address, null, 2) : '';
+        setSiteForm({
+          siteName: data.siteName || '',
+          contactEmail: data.contactEmail || '',
+          contactPhone: data.contactPhone || '',
+          address: addressValue,
+        });
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     loadSettings();
   }, []);
 
-  const loadSettings = async () => {
+  React.useEffect(() => {
+    const loadUsers = async () => {
+      try {
+        const data = await users.list();
+        setUsersData(data);
+      } catch (error) {
+        console.error('Failed to load users:', error);
+      } finally {
+        setUsersLoading(false);
+      }
+    };
+
+    loadUsers();
+  }, []);
+
+  const handleAccountSave = async () => {
+    if (!user) return;
+    setIsSavingAccount(true);
     try {
-      const data = await settingsApi.get();
-      form.reset({
-        siteName: data.siteName || '',
-        siteDescription: data.siteDescription || '',
-        primaryColor: data.primaryColor || '#1e40af',
-        secondaryColor: data.secondaryColor || '#3b82f6',
-        logoUrl: data.logoUrl || '',
-        faviconUrl: data.faviconUrl || '',
-        fontHeading: data.fontHeading || 'Inter',
-        fontBody: data.fontBody || 'Inter',
-        seniorModeEnabled: data.seniorModeEnabled ?? true,
-        dyslexicModeEnabled: data.dyslexicModeEnabled ?? true,
-        darkModeEnabled: data.darkModeEnabled ?? true,
-        address: data.address || '',
-        phone: data.phone || '',
-        email: data.email || '',
-        facebookUrl: data.facebookUrl || '',
-        twitterUrl: data.twitterUrl || '',
-        instagramUrl: data.instagramUrl || '',
+      await users.update(user.id, {
+        firstName: accountForm.firstName,
+        lastName: accountForm.lastName,
+        email: accountForm.email,
+        password: accountForm.password || undefined,
       });
+      setAccountForm((prev) => ({ ...prev, password: '' }));
+      await refreshUser();
+      toast.success('Compte mis à jour');
     } catch (error) {
-      console.error('Failed to load settings:', error);
+      console.error('Failed to update account:', error);
+      toast.error('Erreur lors de la mise à jour');
     } finally {
-      setIsLoading(false);
+      setIsSavingAccount(false);
     }
   };
 
-  const onSubmit = async (data: SettingsForm) => {
-    setIsSaving(true);
+  const parseAddress = (value: string) => {
+    if (!value) return null;
     try {
-      await settingsApi.update(data);
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  };
+
+  const handleSiteSave = async () => {
+    setIsSavingSite(true);
+    try {
+      await settingsApi.update({
+        siteName: siteForm.siteName,
+        contactEmail: siteForm.contactEmail || null,
+        contactPhone: siteForm.contactPhone || null,
+        address: parseAddress(siteForm.address),
+      });
       toast.success('Paramètres enregistrés');
     } catch (error) {
       console.error('Failed to save settings:', error);
-      toast.error('Erreur lors de l\'enregistrement');
+      toast.error('Erreur lors de l’enregistrement');
     } finally {
-      setIsSaving(false);
+      setIsSavingSite(false);
     }
   };
+
+  const openUserDialog = (userToEdit?: User) => {
+    if (userToEdit) {
+      setEditingUser(userToEdit);
+      setUserForm({
+        firstName: userToEdit.firstName,
+        lastName: userToEdit.lastName,
+        email: userToEdit.email,
+        role: userToEdit.role,
+        isActive: userToEdit.isActive,
+        password: '',
+      });
+    } else {
+      setEditingUser(null);
+      setUserForm(defaultUserForm);
+    }
+    setUserDialogOpen(true);
+  };
+
+  const handleUserSave = async () => {
+    setIsSavingUser(true);
+    try {
+      if (editingUser) {
+        await users.update(editingUser.id, {
+          firstName: userForm.firstName,
+          lastName: userForm.lastName,
+          email: userForm.email,
+          role: userForm.role,
+          isActive: userForm.isActive,
+          password: userForm.password || undefined,
+        });
+      } else {
+        await users.create({
+          firstName: userForm.firstName,
+          lastName: userForm.lastName,
+          email: userForm.email,
+          role: userForm.role,
+          isActive: userForm.isActive,
+          password: userForm.password,
+        });
+      }
+      setUserDialogOpen(false);
+      setUserForm(defaultUserForm);
+      setEditingUser(null);
+      const data = await users.list();
+      setUsersData(data);
+      toast.success('Utilisateur enregistré');
+    } catch (error) {
+      console.error('Failed to save user:', error);
+      toast.error('Erreur lors de l’enregistrement');
+    } finally {
+      setIsSavingUser(false);
+    }
+  };
+
+  const handleUserDelete = async (userId: string) => {
+    if (!confirm('Supprimer cet utilisateur ?')) return;
+    try {
+      await users.delete(userId);
+      setUsersData((prev) => prev.filter((u) => u.id !== userId));
+      toast.success('Utilisateur supprimé');
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      toast.error('Erreur lors de la suppression');
+    }
+  };
+
+  const userColumns: ColumnDef<User>[] = [
+    {
+      accessorKey: 'firstName',
+      header: 'Utilisateur',
+      cell: ({ row }) => (
+        <div>
+          <p className="font-medium">{row.original.firstName} {row.original.lastName}</p>
+          <p className="text-sm text-muted-foreground">{row.original.email}</p>
+        </div>
+      ),
+    },
+    {
+      accessorKey: 'role',
+      header: 'Rôle',
+      cell: ({ row }) => (
+        <Badge variant="secondary">{row.original.role}</Badge>
+      ),
+    },
+    {
+      accessorKey: 'isActive',
+      header: 'Statut',
+      cell: ({ row }) => (
+        <Badge variant={row.original.isActive ? 'success' : 'secondary'}>
+          {row.original.isActive ? 'Actif' : 'Inactif'}
+        </Badge>
+      ),
+    },
+    {
+      id: 'actions',
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <Button variant="ghost" size="icon" onClick={() => openUserDialog(row.original)}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => handleUserDelete(row.original.id)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)}>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Paramètres</h1>
-            <p className="text-muted-foreground">
-              Configurez l&apos;apparence et les informations de votre site
-            </p>
-          </div>
-          <Button type="submit" disabled={isSaving}>
-            {isSaving ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            Enregistrer
-          </Button>
-        </div>
-
-        <Tabs defaultValue="general" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="general">
-              <Globe className="mr-2 h-4 w-4" />
-              Général
-            </TabsTrigger>
-            <TabsTrigger value="branding">
-              <Palette className="mr-2 h-4 w-4" />
-              Apparence
-            </TabsTrigger>
-            <TabsTrigger value="contact">
-              <Phone className="mr-2 h-4 w-4" />
-              Contact
-            </TabsTrigger>
-            <TabsTrigger value="accessibility">
-              <Accessibility className="mr-2 h-4 w-4" />
-              Accessibilité
-            </TabsTrigger>
-            <TabsTrigger value="social">
-              <Share2 className="mr-2 h-4 w-4" />
-              Réseaux sociaux
-            </TabsTrigger>
-          </TabsList>
-
-          <motion.div variants={container} initial="hidden" animate="show">
-            {/* General */}
-            <TabsContent value="general">
-              <motion.div variants={item}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Informations générales</CardTitle>
-                    <CardDescription>
-                      Nom et description de votre site
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="siteName">Nom du site</Label>
-                      <Input
-                        id="siteName"
-                        placeholder="Mairie de Villiers-Adam"
-                        {...form.register('siteName')}
-                      />
-                      {form.formState.errors.siteName && (
-                        <p className="text-sm text-destructive">
-                          {form.formState.errors.siteName.message}
-                        </p>
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="siteDescription">Description</Label>
-                      <Textarea
-                        id="siteDescription"
-                        placeholder="Site officiel de la commune..."
-                        rows={3}
-                        {...form.register('siteDescription')}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </TabsContent>
-
-            {/* Branding */}
-            <TabsContent value="branding">
-              <motion.div variants={item} className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Couleurs</CardTitle>
-                    <CardDescription>
-                      Personnalisez les couleurs de votre site
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="primaryColor">Couleur principale</Label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="color"
-                            id="primaryColor"
-                            className="h-10 w-10 rounded border cursor-pointer"
-                            {...form.register('primaryColor')}
-                          />
-                          <Input
-                            className="flex-1"
-                            {...form.register('primaryColor')}
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="secondaryColor">Couleur secondaire</Label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="color"
-                            id="secondaryColor"
-                            className="h-10 w-10 rounded border cursor-pointer"
-                            {...form.register('secondaryColor')}
-                          />
-                          <Input
-                            className="flex-1"
-                            {...form.register('secondaryColor')}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div
-                      className="h-20 rounded-lg flex items-center justify-center text-white font-medium"
-                      style={{
-                        background: `linear-gradient(135deg, ${form.watch('primaryColor')} 0%, ${form.watch('secondaryColor')} 100%)`,
-                      }}
-                    >
-                      Aperçu des couleurs
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Typographie</CardTitle>
-                    <CardDescription>
-                      Choisissez les polices de caractères
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>Police des titres</Label>
-                        <select
-                          className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          {...form.register('fontHeading')}
-                        >
-                          {fonts.map((font) => (
-                            <option key={font.value} value={font.value}>
-                              {font.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Police du corps</Label>
-                        <select
-                          className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          {...form.register('fontBody')}
-                        >
-                          {fonts.map((font) => (
-                            <option key={font.value} value={font.value}>
-                              {font.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Logo et favicon</CardTitle>
-                    <CardDescription>
-                      Images représentant votre commune
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="logoUrl">URL du logo</Label>
-                      <Input
-                        id="logoUrl"
-                        placeholder="https://..."
-                        {...form.register('logoUrl')}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="faviconUrl">URL du favicon</Label>
-                      <Input
-                        id="faviconUrl"
-                        placeholder="https://..."
-                        {...form.register('faviconUrl')}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </TabsContent>
-
-            {/* Contact */}
-            <TabsContent value="contact">
-              <motion.div variants={item}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Coordonnées</CardTitle>
-                    <CardDescription>
-                      Informations de contact de la mairie
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="address">Adresse</Label>
-                      <Textarea
-                        id="address"
-                        placeholder="1 Place de la Mairie..."
-                        rows={3}
-                        {...form.register('address')}
-                      />
-                    </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="phone">Téléphone</Label>
-                        <Input
-                          id="phone"
-                          placeholder="01 34 08 50 50"
-                          {...form.register('phone')}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="email">Email</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          placeholder="mairie@villiers-adam.fr"
-                          {...form.register('email')}
-                        />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </TabsContent>
-
-            {/* Accessibility */}
-            <TabsContent value="accessibility">
-              <motion.div variants={item}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Modes d&apos;accessibilité</CardTitle>
-                    <CardDescription>
-                      Activez ou désactivez les options d&apos;accessibilité
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Mode senior</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Agrandit les textes et simplifie l&apos;interface
-                        </p>
-                      </div>
-                      <Switch
-                        checked={form.watch('seniorModeEnabled')}
-                        onCheckedChange={(checked) =>
-                          form.setValue('seniorModeEnabled', checked)
-                        }
-                      />
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Mode dyslexique</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Utilise une police adaptée à la dyslexie
-                        </p>
-                      </div>
-                      <Switch
-                        checked={form.watch('dyslexicModeEnabled')}
-                        onCheckedChange={(checked) =>
-                          form.setValue('dyslexicModeEnabled', checked)
-                        }
-                      />
-                    </div>
-                    <Separator />
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>Mode sombre</Label>
-                        <p className="text-sm text-muted-foreground">
-                          Permet aux utilisateurs de basculer en mode nuit
-                        </p>
-                      </div>
-                      <Switch
-                        checked={form.watch('darkModeEnabled')}
-                        onCheckedChange={(checked) =>
-                          form.setValue('darkModeEnabled', checked)
-                        }
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </TabsContent>
-
-            {/* Social */}
-            <TabsContent value="social">
-              <motion.div variants={item}>
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Réseaux sociaux</CardTitle>
-                    <CardDescription>
-                      Liens vers vos pages sur les réseaux sociaux
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="facebookUrl">Facebook</Label>
-                      <Input
-                        id="facebookUrl"
-                        placeholder="https://facebook.com/..."
-                        {...form.register('facebookUrl')}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="twitterUrl">Twitter / X</Label>
-                      <Input
-                        id="twitterUrl"
-                        placeholder="https://twitter.com/..."
-                        {...form.register('twitterUrl')}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="instagramUrl">Instagram</Label>
-                      <Input
-                        id="instagramUrl"
-                        placeholder="https://instagram.com/..."
-                        {...form.register('instagramUrl')}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            </TabsContent>
-          </motion.div>
-        </Tabs>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Paramètres</h1>
+        <p className="text-muted-foreground">Gérez votre compte, les utilisateurs et les informations du site.</p>
       </div>
-    </form>
+
+      <Tabs defaultValue="account" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="account">Compte</TabsTrigger>
+          <TabsTrigger value="users">Utilisateurs</TabsTrigger>
+          <TabsTrigger value="site">Site</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="account">
+          <Card>
+            <CardHeader>
+              <CardTitle>Compte</CardTitle>
+              <CardDescription>Mettre à jour les informations de connexion.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Prénom</Label>
+                  <Input
+                    value={accountForm.firstName}
+                    onChange={(e) => setAccountForm((prev) => ({ ...prev, firstName: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Nom</Label>
+                  <Input
+                    value={accountForm.lastName}
+                    onChange={(e) => setAccountForm((prev) => ({ ...prev, lastName: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={accountForm.email}
+                  onChange={(e) => setAccountForm((prev) => ({ ...prev, email: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Nouveau mot de passe</Label>
+                <Input
+                  type="password"
+                  value={accountForm.password}
+                  onChange={(e) => setAccountForm((prev) => ({ ...prev, password: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground">Laissez vide pour conserver le mot de passe actuel.</p>
+              </div>
+              <Button onClick={handleAccountSave} disabled={isSavingAccount}>
+                <Save className="mr-2 h-4 w-4" />
+                {isSavingAccount ? 'Enregistrement...' : 'Enregistrer'}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="users">
+          <Card>
+            <CardHeader>
+              <CardTitle>Utilisateurs</CardTitle>
+              <CardDescription>Gestion des comptes et des rôles.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground">
+                  {usersData.length} compte(s)
+                </div>
+                <Button onClick={() => openUserDialog()}>
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Ajouter un utilisateur
+                </Button>
+              </div>
+              <DataTable columns={userColumns} data={usersData} searchKey="email" isLoading={usersLoading} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="site">
+          <Card>
+            <CardHeader>
+              <CardTitle>Informations du site</CardTitle>
+              <CardDescription>Coordonnées et informations publiques.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Nom du site</Label>
+                <Input
+                  value={siteForm.siteName}
+                  onChange={(e) => setSiteForm((prev) => ({ ...prev, siteName: e.target.value }))}
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Email de contact</Label>
+                  <Input
+                    type="email"
+                    value={siteForm.contactEmail}
+                    onChange={(e) => setSiteForm((prev) => ({ ...prev, contactEmail: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Téléphone</Label>
+                  <Input
+                    value={siteForm.contactPhone}
+                    onChange={(e) => setSiteForm((prev) => ({ ...prev, contactPhone: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Adresse (texte ou JSON)</Label>
+                <Textarea
+                  rows={4}
+                  value={siteForm.address}
+                  onChange={(e) => setSiteForm((prev) => ({ ...prev, address: e.target.value }))}
+                />
+              </div>
+              <Button onClick={handleSiteSave} disabled={isSavingSite}>
+                <Save className="mr-2 h-4 w-4" />
+                {isSavingSite ? 'Enregistrement...' : 'Enregistrer'}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      <Dialog open={userDialogOpen} onOpenChange={setUserDialogOpen}>
+        <DialogContent className="sm:max-w-[520px]">
+          <DialogHeader>
+            <DialogTitle>{editingUser ? 'Modifier' : 'Nouvel'} utilisateur</DialogTitle>
+            <DialogDescription>Gérez le rôle et l&apos;accès au back-office.</DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Prénom</Label>
+                <Input
+                  value={userForm.firstName}
+                  onChange={(e) => setUserForm((prev) => ({ ...prev, firstName: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Nom</Label>
+                <Input
+                  value={userForm.lastName}
+                  onChange={(e) => setUserForm((prev) => ({ ...prev, lastName: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={userForm.email}
+                onChange={(e) => setUserForm((prev) => ({ ...prev, email: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Mot de passe</Label>
+              <Input
+                type="password"
+                value={userForm.password}
+                onChange={(e) => setUserForm((prev) => ({ ...prev, password: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                {editingUser ? 'Laissez vide pour conserver le mot de passe.' : 'Min. 8 caractères.'}
+              </p>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Rôle</Label>
+                <Select
+                  value={userForm.role}
+                  onValueChange={(value) => setUserForm((prev) => ({ ...prev, role: value as User['role'] }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {roleOptions.map((role) => (
+                      <SelectItem key={role.value} value={role.value}>
+                        {role.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label>Compte actif</Label>
+                  <p className="text-xs text-muted-foreground">Autorise la connexion</p>
+                </div>
+                <Switch
+                  checked={userForm.isActive}
+                  onCheckedChange={(checked) => setUserForm((prev) => ({ ...prev, isActive: checked }))}
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUserDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleUserSave} disabled={isSavingUser}>
+              <Shield className="mr-2 h-4 w-4" />
+              {isSavingUser ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

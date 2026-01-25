@@ -10,6 +10,7 @@ export const reservationCreateSchema = z.object({
   requesterEmail: z.string().email(),
   requesterPhone: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
+  captchaToken: z.string().optional().nullable(),
 });
 
 export const reservationStatusSchema = z.object({

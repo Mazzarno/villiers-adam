@@ -1,7 +1,6 @@
 import { Metadata } from 'next';
 import Link from 'next/link';
-import Image from 'next/image';
-import { Calendar, Users, MapPin, ArrowRight, Info } from 'lucide-react';
+import { Calendar, Users, ArrowRight, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -170,7 +169,7 @@ export default function ReservationsPage() {
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   <li className="flex items-start gap-2">
                     <span className="text-primary">•</span>
-                    Pièce d'identité du responsable
+                    Pièce d&apos;identité du responsable
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-primary">•</span>
@@ -178,7 +177,7 @@ export default function ReservationsPage() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-primary">•</span>
-                    Attestation d'assurance responsabilité civile
+                    Attestation d&apos;assurance responsabilité civile
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-primary">•</span>
@@ -200,7 +199,7 @@ export default function ReservationsPage() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-primary">•</span>
-                    Solde 15 jours avant l'événement
+                    Solde 15 jours avant l&apos;événement
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-primary">•</span>
@@ -225,7 +224,7 @@ export default function ReservationsPage() {
               Une question sur les réservations ?
             </h3>
             <p className="text-primary-foreground/80 mb-6 max-w-xl mx-auto">
-              Contactez le secrétariat de mairie pour toute demande d'information sur les salles communales.
+              Contactez le secrétariat de mairie pour toute demande d&apos;information sur les salles communales.
             </p>
             <Button variant="secondary" size="lg" asChild>
               <Link href="/contact">Nous contacter</Link>

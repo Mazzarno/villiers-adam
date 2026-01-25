@@ -69,6 +69,7 @@ const navigation: NavItem[] = [
           { label: 'Transport scolaire', href: '/vie-quotidienne/transports/transport-scolaire' },
         ],
       },
+      { label: 'Commerces & entreprises', href: '/vie-quotidienne/commerces' },
       { label: 'Urbanisme', href: '/vie-quotidienne/urbanisme' },
     ],
   },
@@ -93,7 +94,6 @@ function AccessibilityMenu() {
   const {
     theme,
     setTheme,
-    resolvedTheme,
     seniorMode,
     setSeniorMode,
     dyslexicMode,
