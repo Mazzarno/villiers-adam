@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { ColumnDef } from '@tanstack/react-table';
-import { MoreHorizontal, Plus, ArrowUpDown, Pencil, Trash2, Calendar } from 'lucide-react';
+import { MoreHorizontal, Plus, ArrowUpDown, Pencil, Trash2, Send, Archive, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -32,14 +32,15 @@ import {
 } from '@/components/ui/select';
 import { DataTable } from '@/components/content/data-table';
 import { Badge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/content/status-badge';
 import { agenda, type AgendaItem } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 
-const typeOptions = [
-  { label: 'Tous', value: '' },
-  { label: 'Communal', value: 'COMMUNAL' },
-  { label: 'Associatif', value: 'ASSOCIATIF' },
-  { label: 'Déchets', value: 'DECHETS' },
+const statusOptions = [
+  { label: 'Brouillon', value: 'DRAFT' },
+  { label: 'Programmé', value: 'SCHEDULED' },
+  { label: 'Publié', value: 'PUBLISHED' },
+  { label: 'Archivé', value: 'ARCHIVED' },
 ];
 
 const typeLabels: Record<string, string> = {
@@ -83,6 +84,10 @@ export default function AgendaPage() {
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [formData, setFormData] = React.useState<FormData>(defaultFormData);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [scheduleDialogOpen, setScheduleDialogOpen] = React.useState(false);
+  const [scheduleValue, setScheduleValue] = React.useState('');
+  const [schedulingId, setSchedulingId] = React.useState<string | null>(null);
+  const [isScheduling, setIsScheduling] = React.useState(false);
 
   React.useEffect(() => {
     loadData();
@@ -103,6 +108,16 @@ export default function AgendaPage() {
     setEditingId(null);
     setFormData(defaultFormData);
     setDialogOpen(true);
+  };
+
+  const toDateTimeLocal = (value?: string | null) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const pad = (val: number) => String(val).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+      date.getHours(),
+    )}:${pad(date.getMinutes())}`;
   };
 
   const handleEdit = (item: AgendaItem) => {
@@ -140,6 +155,46 @@ export default function AgendaPage() {
       console.error('Failed to save:', error);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handlePublish = async (id: string) => {
+    try {
+      await agenda.publish(id);
+      loadData();
+    } catch (error) {
+      console.error('Failed to publish:', error);
+    }
+  };
+
+  const handleArchive = async (id: string) => {
+    try {
+      await agenda.archive(id);
+      loadData();
+    } catch (error) {
+      console.error('Failed to archive:', error);
+    }
+  };
+
+  const openScheduleDialog = (item: AgendaItem) => {
+    setSchedulingId(item.id);
+    setScheduleValue(toDateTimeLocal(item.scheduledAt ?? item.startsAt));
+    setScheduleDialogOpen(true);
+  };
+
+  const handleSchedule = async () => {
+    if (!schedulingId || !scheduleValue) return;
+    setIsScheduling(true);
+    try {
+      await agenda.schedule(schedulingId, new Date(scheduleValue).toISOString());
+      setScheduleDialogOpen(false);
+      setSchedulingId(null);
+      setScheduleValue('');
+      loadData();
+    } catch (error) {
+      console.error('Failed to schedule:', error);
+    } finally {
+      setIsScheduling(false);
     }
   };
 
@@ -189,6 +244,11 @@ export default function AgendaPage() {
       },
     },
     {
+      accessorKey: 'status',
+      header: 'Statut',
+      cell: ({ row }) => <StatusBadge status={row.original.status} />,
+    },
+    {
       accessorKey: 'startsAt',
       header: ({ column }) => (
         <Button
@@ -235,6 +295,25 @@ export default function AgendaPage() {
                 <Pencil className="mr-2 h-4 w-4" />
                 Modifier
               </DropdownMenuItem>
+              {item.status !== 'ARCHIVED' && (
+                <DropdownMenuItem onClick={() => openScheduleDialog(item)}>
+                  <Clock className="mr-2 h-4 w-4" />
+                  Programmer
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              {(item.status === 'DRAFT' || item.status === 'SCHEDULED') && (
+                <DropdownMenuItem onClick={() => handlePublish(item.id)}>
+                  <Send className="mr-2 h-4 w-4" />
+                  Publier
+                </DropdownMenuItem>
+              )}
+              {item.status === 'PUBLISHED' && (
+                <DropdownMenuItem onClick={() => handleArchive(item.id)}>
+                  <Archive className="mr-2 h-4 w-4" />
+                  Archiver
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => handleDelete(item.id)}
@@ -275,8 +354,8 @@ export default function AgendaPage() {
           data={data}
           searchKey="title"
           searchPlaceholder="Rechercher un événement..."
-          filterColumn="type"
-          filterOptions={typeOptions}
+          filterColumn="status"
+          filterOptions={statusOptions}
         />
       )}
 
@@ -364,6 +443,36 @@ export default function AgendaPage() {
             </Button>
             <Button onClick={handleSave} disabled={isSaving || !formData.title || !formData.startsAt}>
               {isSaving ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Programmer l&apos;événement</DialogTitle>
+            <DialogDescription>
+              Choisissez la date et l&apos;heure de publication.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="scheduleAt">Date de publication</Label>
+              <Input
+                id="scheduleAt"
+                type="datetime-local"
+                value={scheduleValue}
+                onChange={(e) => setScheduleValue(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setScheduleDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleSchedule} disabled={isScheduling || !scheduleValue}>
+              {isScheduling ? 'Programmation...' : 'Programmer'}
             </Button>
           </DialogFooter>
         </DialogContent>

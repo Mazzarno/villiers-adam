@@ -44,6 +44,27 @@ export class PagesService {
     });
   }
 
+  async getMenuItems() {
+    const pages = await this.prisma.page.findMany({
+      where: {
+        status: ContentStatus.PUBLISHED,
+        showInMenu: true,
+        publishedAt: { lte: new Date() },
+      },
+      select: {
+        id: true,
+        slug: true,
+        menuTitle: true,
+        title: true,
+        menuOrder: true,
+        parentId: true,
+      },
+      orderBy: { menuOrder: 'asc' },
+    });
+
+    return this.buildMenuTree(pages);
+  }
+
   async getById(id: string) {
     const page = await this.prisma.page.findUnique({
       where: { id },
@@ -183,6 +204,66 @@ export class PagesService {
     await this.searchService.remove('pages', page.id);
 
     return this.prisma.page.delete({ where: { id } });
+  }
+
+  private buildMenuTree(pages: Array<{
+    id: string;
+    slug: string;
+    menuTitle: string | null;
+    title: string;
+    menuOrder: number | null;
+    parentId: string | null;
+  }>) {
+    type MenuItem = {
+      id: string;
+      slug: string;
+      menuTitle: string | null;
+      title: string;
+      menuOrder: number | null;
+      parentId: string | null;
+      children: MenuItem[];
+    };
+
+    const pageMap = new Map<string, MenuItem>(
+      pages.map((page) => [
+        page.id,
+        { ...page, children: [] },
+      ])
+    );
+    const rootItems: MenuItem[] = [];
+
+    pages.forEach((page) => {
+      const menuItem = pageMap.get(page.id);
+      if (!menuItem) return;
+
+      if (page.parentId) {
+        const parent = pageMap.get(page.parentId);
+        if (parent) {
+          parent.children.push(menuItem);
+        } else {
+          rootItems.push(menuItem);
+        }
+      } else {
+        rootItems.push(menuItem);
+      }
+    });
+
+    const sortItems = (items: MenuItem[]) => {
+      items.sort((a, b) => {
+        const orderA = a?.menuOrder ?? 0;
+        const orderB = b?.menuOrder ?? 0;
+        if (orderA !== orderB) return orderA - orderB;
+        return (a?.title || '').localeCompare(b?.title || '');
+      });
+      items.forEach((item) => {
+        if (item?.children?.length) {
+          sortItems(item.children);
+        }
+      });
+    };
+
+    sortItems(rootItems);
+    return rootItems;
   }
 
   async publish(id: string, actor: AuditContext) {

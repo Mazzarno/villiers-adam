@@ -7,8 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { HCaptchaWidget } from '@/components/forms/hcaptcha';
+import { MapEmbed } from '@/components/map/map-embed';
 import api from '@/lib/api';
 import { mairieConfig } from '@/lib/config';
+import { cn } from '@/lib/utils';
 
 const subjects = [
   'Demande d\'information',
@@ -336,7 +338,7 @@ export default function ContactPage() {
                   {openingHours.map(({ day, hours }) => (
                     <div key={day} className="flex justify-between">
                       <dt className="text-muted-foreground">{day}</dt>
-                      <dd className={hours === 'Fermé' ? 'text-muted-foreground' : ''}>
+                      <dd className={cn(hours === 'Fermé' && 'text-muted-foreground')}>
                         {hours}
                       </dd>
                     </div>
@@ -348,15 +350,17 @@ export default function ContactPage() {
         </div>
       </section>
 
-      {/* Map placeholder */}
+      {/* Map */}
       <section className="container pb-12">
         <Card>
           <CardContent className="p-0">
-            <div className="aspect-[21/9] bg-muted rounded-lg flex items-center justify-center">
-              <div className="text-center">
-                <MapPin className="h-12 w-12 text-muted-foreground/50 mx-auto mb-2" />
-                <p className="text-muted-foreground">Carte interactive</p>
-              </div>
+            <div className="aspect-[21/9]">
+              <MapEmbed
+                lat={mairieConfig.coordinates.lat}
+                lng={mairieConfig.coordinates.lng}
+                label="Voir sur OpenStreetMap"
+                className="h-full w-full"
+              />
             </div>
           </CardContent>
         </Card>

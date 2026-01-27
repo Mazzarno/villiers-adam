@@ -20,6 +20,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAccessibility, useIsMounted } from '@/contexts/accessibility-context';
+import api, { type PageMenuItem } from '@/lib/api';
 
 interface NavItem {
   label: string;
@@ -27,7 +28,7 @@ interface NavItem {
   children?: NavItem[];
 }
 
-const navigation: NavItem[] = [
+const fallbackNavigation: NavItem[] = [
   {
     label: 'La Mairie',
     href: '/mairie',
@@ -87,6 +88,34 @@ const navigation: NavItem[] = [
   { label: 'Agenda', href: '/agenda' },
   { label: 'Contact', href: '/contact' },
 ];
+
+const staticNavigation: NavItem[] = [
+  { label: 'Actualités', href: '/actualites' },
+  { label: 'Agenda', href: '/agenda' },
+  { label: 'Contact', href: '/contact' },
+];
+
+const normalizeHref = (slug: string) => {
+  if (!slug) return '/';
+  return slug.startsWith('/') ? slug : `/${slug}`;
+};
+
+const mapMenuItem = (item: PageMenuItem): NavItem => ({
+  label: item.menuTitle || item.title,
+  href: normalizeHref(item.slug),
+  children: item.children?.map(mapMenuItem),
+});
+
+const mergeNavigation = (menuItems: NavItem[], extraItems: NavItem[]) => {
+  const existing = new Set(menuItems.map((item) => item.href));
+  const merged = [...menuItems];
+  extraItems.forEach((item) => {
+    if (!existing.has(item.href)) {
+      merged.push(item);
+    }
+  });
+  return merged;
+};
 
 function AccessibilityMenu() {
   const [isOpen, setIsOpen] = React.useState(false);
@@ -306,6 +335,28 @@ export function Header() {
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [activeDropdown, setActiveDropdown] = React.useState<string | null>(null);
   const [expandedMobileItems, setExpandedMobileItems] = React.useState<string[]>([]);
+  const [menuItems, setMenuItems] = React.useState<NavItem[]>(fallbackNavigation);
+
+  React.useEffect(() => {
+    let active = true;
+    const loadMenu = async () => {
+      try {
+        const data = await api.pages.menu();
+        const mapped = data.map(mapMenuItem);
+        const merged = mergeNavigation(mapped, staticNavigation);
+        if (active && merged.length > 0) {
+          setMenuItems(merged);
+        }
+      } catch (error) {
+        console.error('Erreur chargement menu:', error);
+      }
+    };
+
+    loadMenu();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   // Scroll detection pour glassmorphism
   const { scrollY } = useScroll();
@@ -384,7 +435,7 @@ export function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-1">
-            {navigation.map((item) => (
+            {menuItems.map((item) => (
               <div
                 key={item.href}
                 className="relative"
@@ -569,7 +620,7 @@ export function Header() {
               {/* Navigation scrollable */}
               <nav className="flex-1 overflow-y-auto max-h-[calc(100svh-5rem)] py-4 px-4">
                 <div className="space-y-1">
-                  {navigation.map((item, index) => (
+                  {menuItems.map((item, index) => (
                     <motion.div
                       key={item.href}
                       initial={{ opacity: 0, x: 20 }}

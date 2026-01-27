@@ -29,11 +29,7 @@ export default function PagesListPage() {
   const [data, setData] = React.useState<Page[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
-  React.useEffect(() => {
-    loadPages();
-  }, []);
-
-  const loadPages = async () => {
+  const loadPages = React.useCallback(async () => {
     try {
       const result = await pages.list();
       setData(result);
@@ -42,27 +38,31 @@ export default function PagesListPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const handlePublish = async (id: string) => {
+  React.useEffect(() => {
+    loadPages();
+  }, [loadPages]);
+
+  const handlePublish = React.useCallback(async (id: string) => {
     try {
       await pages.publish(id);
       loadPages();
     } catch (error) {
       console.error('Failed to publish:', error);
     }
-  };
+  }, [loadPages]);
 
-  const handleArchive = async (id: string) => {
+  const handleArchive = React.useCallback(async (id: string) => {
     try {
       await pages.archive(id);
       loadPages();
     } catch (error) {
       console.error('Failed to archive:', error);
     }
-  };
+  }, [loadPages]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = React.useCallback(async (id: string) => {
     if (!confirm('Êtes-vous sûr de vouloir supprimer cette page ?')) return;
     try {
       await pages.delete(id);
@@ -70,116 +70,119 @@ export default function PagesListPage() {
     } catch (error) {
       console.error('Failed to delete:', error);
     }
-  };
+  }, [loadPages]);
 
-  const columns: ColumnDef<Page>[] = [
-    {
-      accessorKey: 'title',
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-        >
-          Titre
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      cell: ({ row }) => (
-        <div>
-          <p className="font-medium">{row.original.title}</p>
-          <p className="text-sm text-muted-foreground">/{row.original.slug}</p>
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'status',
-      header: 'Statut',
-      cell: ({ row }) => <StatusBadge status={row.original.status} />,
-      filterFn: (row, id, value) => {
-        return value === '' || row.getValue(id) === value;
+  const columns = React.useMemo<ColumnDef<Page>[]>(
+    () => [
+      {
+        accessorKey: 'title',
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Titre
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        ),
+        cell: ({ row }) => (
+          <div>
+            <p className="font-medium">{row.original.title}</p>
+            <p className="text-sm text-muted-foreground">/{row.original.slug}</p>
+          </div>
+        ),
       },
-    },
-    {
-      accessorKey: 'author',
-      header: 'Auteur',
-      cell: ({ row }) => (
-        <span className="text-sm">
-          {row.original.author
-            ? `${row.original.author.firstName} ${row.original.author.lastName}`
-            : '-'}
-        </span>
-      ),
-    },
-    {
-      accessorKey: 'updatedAt',
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-        >
-          Modifié
-          <ArrowUpDown className="ml-2 h-4 w-4" />
-        </Button>
-      ),
-      cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
-          {formatDate(row.original.updatedAt)}
-        </span>
-      ),
-    },
-    {
-      id: 'actions',
-      cell: ({ row }) => {
-        const page = row.original;
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Actions</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem asChild>
-                <Link href={`/content/pages/${page.id}`}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Modifier
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => window.open(`/${page.slug}`, '_blank')}
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                Prévisualiser
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              {page.status === 'DRAFT' && (
-                <DropdownMenuItem onClick={() => handlePublish(page.id)}>
-                  <Send className="mr-2 h-4 w-4" />
-                  Publier
-                </DropdownMenuItem>
-              )}
-              {page.status === 'PUBLISHED' && (
-                <DropdownMenuItem onClick={() => handleArchive(page.id)}>
-                  <Archive className="mr-2 h-4 w-4" />
-                  Archiver
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => handleDelete(page.id)}
-                className="text-destructive"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Supprimer
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
+      {
+        accessorKey: 'status',
+        header: 'Statut',
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
+        filterFn: (row, id, value) => {
+          return value === '' || row.getValue(id) === value;
+        },
       },
-    },
-  ];
+      {
+        accessorKey: 'author',
+        header: 'Auteur',
+        cell: ({ row }) => (
+          <span className="text-sm">
+            {row.original.author
+              ? `${row.original.author.firstName} ${row.original.author.lastName}`
+              : '-'}
+          </span>
+        ),
+      },
+      {
+        accessorKey: 'updatedAt',
+        header: ({ column }) => (
+          <Button
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+          >
+            Modifié
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
+        ),
+        cell: ({ row }) => (
+          <span className="text-sm text-muted-foreground">
+            {formatDate(row.original.updatedAt)}
+          </span>
+        ),
+      },
+      {
+        id: 'actions',
+        cell: ({ row }) => {
+          const page = row.original;
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Actions</span>
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuItem asChild>
+                  <Link href={`/content/pages/${page.id}`}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Modifier
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => window.open(`/${page.slug}`, '_blank')}
+                >
+                  <Eye className="mr-2 h-4 w-4" />
+                  Prévisualiser
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {page.status === 'DRAFT' && (
+                  <DropdownMenuItem onClick={() => handlePublish(page.id)}>
+                    <Send className="mr-2 h-4 w-4" />
+                    Publier
+                  </DropdownMenuItem>
+                )}
+                {page.status === 'PUBLISHED' && (
+                  <DropdownMenuItem onClick={() => handleArchive(page.id)}>
+                    <Archive className="mr-2 h-4 w-4" />
+                    Archiver
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => handleDelete(page.id)}
+                  className="text-destructive"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Supprimer
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        },
+      },
+    ],
+    [handleArchive, handleDelete, handlePublish, formatDate]
+  );
 
   return (
     <div className="space-y-6">

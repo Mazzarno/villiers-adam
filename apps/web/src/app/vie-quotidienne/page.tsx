@@ -140,7 +140,7 @@ export default function VieQuotidiennePage() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, delay: index * 0.1 }}
-                className={section.featured ? 'md:col-span-2' : ''}
+                className={cn(section.featured && 'md:col-span-2')}
               >
                 <Link
                   href={`/vie-quotidienne/${section.slug}`}

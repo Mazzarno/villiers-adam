@@ -26,6 +26,11 @@ export class PagesController {
     return this.pagesService.listPublished();
   }
 
+  @Get('menu')
+  getMenu() {
+    return this.pagesService.getMenuItems();
+  }
+
   @UseGuards(JwtAuthGuard, PermissionGuard)
   @RequirePermission('content:read')
   @Get('admin')

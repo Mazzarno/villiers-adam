@@ -1,13 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
   Calendar,
   Users,
   ArrowLeft,
-  Check,
   ChevronLeft,
   ChevronRight,
   Loader2,
@@ -19,57 +18,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { HCaptchaWidget } from '@/components/forms/hcaptcha';
-import api from '@/lib/api';
+import api, { type Room } from '@/lib/api';
 import { cn } from '@/lib/utils';
 
-// Données de démonstration
-type RoomData = {
-  id: string;
-  name: string;
-  description: string;
-  capacity: number;
-  amenities: string[];
-  pricePerDay: number;
-  priceWeekend: number;
+type ReservationSlot = {
+  startsAt: string;
+  endsAt: string;
 };
-
-const roomsData: Record<string, RoomData> = {
-  'salle-des-fetes': {
-    id: '1',
-    name: 'Salle des fêtes',
-    description: 'Grande salle polyvalente pour vos événements festifs, mariages, anniversaires.',
-    capacity: 150,
-    amenities: ['Cuisine équipée', 'Sono', 'Tables et chaises', 'Parking', 'Accès PMR'],
-    pricePerDay: 250,
-    priceWeekend: 400,
-  },
-  'salle-du-conseil': {
-    id: '2',
-    name: 'Salle du conseil',
-    description: 'Salle de réunion pour assemblées générales et réunions associatives.',
-    capacity: 40,
-    amenities: ['Vidéoprojecteur', 'Écran', 'Wifi', 'Tableau blanc'],
-    pricePerDay: 50,
-    priceWeekend: 80,
-  },
-  'salle-polyvalente': {
-    id: '3',
-    name: 'Salle polyvalente',
-    description: 'Espace modulable pour activités sportives, cours et ateliers.',
-    capacity: 60,
-    amenities: ['Parquet', 'Miroirs', 'Vestiaires', 'Douches'],
-    pricePerDay: 100,
-    priceWeekend: 150,
-  },
-};
-
-// Réservations existantes (simulation)
-const existingReservations = [
-  { date: '2025-01-25', room: 'salle-des-fetes' },
-  { date: '2025-01-26', room: 'salle-des-fetes' },
-  { date: '2025-02-01', room: 'salle-des-fetes' },
-  { date: '2025-02-08', room: 'salle-du-conseil' },
-];
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
@@ -89,16 +44,21 @@ const monthNames = [
 export default function ReservationRoomPage() {
   const params = useParams();
   const slug = params.slug as string;
-  const room = roomsData[slug];
 
   const today = new Date();
+  const [room, setRoom] = useState<Room | null>(null);
+  const [roomLoading, setRoomLoading] = useState(true);
+  const [roomError, setRoomError] = useState('');
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [step, setStep] = useState<'calendar' | 'form' | 'success'>('calendar');
   const [loading, setLoading] = useState(false);
+  const [checkingDate, setCheckingDate] = useState(false);
   const [captchaToken, setCaptchaToken] = useState('');
   const [error, setError] = useState('');
+  const [reservedDates, setReservedDates] = useState<Set<string>>(new Set());
+  const [selectedSlots, setSelectedSlots] = useState<ReservationSlot[]>([]);
   const siteKey = process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY ?? '';
 
   const [formData, setFormData] = useState({
@@ -112,11 +72,52 @@ export default function ReservationRoomPage() {
     honeypot: '',
   });
 
-  if (!room) {
+  useEffect(() => {
+    let active = true;
+    const loadRoom = async () => {
+      try {
+        setRoomLoading(true);
+        const data = await api.rooms.get(slug);
+        if (active) {
+          setRoom(data);
+        }
+      } catch {
+        if (active) {
+          setRoomError('Impossible de charger cette salle.');
+        }
+      } finally {
+        if (active) {
+          setRoomLoading(false);
+        }
+      }
+    };
+
+    if (slug) {
+      loadRoom();
+    }
+
+    return () => {
+      active = false;
+    };
+  }, [slug]);
+
+  if (roomLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3 text-primary" />
+          <p className="text-muted-foreground">Chargement de la salle...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (roomError || !room) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Salle non trouvée</h1>
+          {roomError && <p className="text-muted-foreground mb-4">{roomError}</p>}
           <Button asChild>
             <Link href="/reservations">Retour aux réservations</Link>
           </Button>
@@ -130,7 +131,7 @@ export default function ReservationRoomPage() {
 
   const isDateReserved = (day: number) => {
     const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    return existingReservations.some((r) => r.date === dateStr && r.room === slug);
+    return reservedDates.has(dateStr);
   };
 
   const isDatePast = (day: number) => {
@@ -145,10 +146,27 @@ export default function ReservationRoomPage() {
     return dayOfWeek === 0 || dayOfWeek === 6;
   };
 
-  const handleDateSelect = (day: number) => {
-    if (isDatePast(day) || isDateReserved(day)) return;
+  const handleDateSelect = async (day: number) => {
+    if (isDatePast(day)) return;
     const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    setSelectedDate(dateStr);
+    setCheckingDate(true);
+    setError('');
+
+    try {
+      const slots = await api.reservations.slots(room.id, dateStr);
+      setSelectedSlots(slots.reservations);
+      if (slots.reservations.length > 0) {
+        setReservedDates((prev) => new Set(prev).add(dateStr));
+        setSelectedDate(null);
+        setError('Cette date est déjà réservée.');
+        return;
+      }
+      setSelectedDate(dateStr);
+    } catch {
+      setError('Impossible de vérifier la disponibilité pour cette date.');
+    } finally {
+      setCheckingDate(false);
+    }
   };
 
   const prevMonth = () => {
@@ -191,6 +209,17 @@ export default function ReservationRoomPage() {
       const startsAt = new Date(`${selectedDate}T00:00:00`);
       const endsAt = new Date(`${selectedDate}T23:59:59`);
 
+      const availability = await api.reservations.checkAvailability({
+        roomId: room.id,
+        startsAt: startsAt.toISOString(),
+        endsAt: endsAt.toISOString(),
+      });
+
+      if (!availability.available) {
+        setError('La salle n\'est pas disponible à cette date.');
+        return;
+      }
+
       const notes = [
         formData.organization ? `Organisation : ${formData.organization}` : null,
         formData.purpose ? `Objet : ${formData.purpose}` : null,
@@ -222,9 +251,6 @@ export default function ReservationRoomPage() {
   };
 
   const selectedDateObj = selectedDate ? new Date(selectedDate) : null;
-  const price = selectedDateObj && isWeekend(selectedDateObj.getDate())
-    ? room.priceWeekend
-    : room.pricePerDay;
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -382,6 +408,12 @@ export default function ReservationRoomPage() {
 
                     {/* Continue button */}
                     <div className="mt-6 pt-4 border-t">
+                      {checkingDate && (
+                        <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Vérification de la disponibilité...
+                        </div>
+                      )}
                       <Button
                         onClick={() => setStep('form')}
                         disabled={!selectedDate}
@@ -599,42 +631,46 @@ export default function ReservationRoomPage() {
                     <Users className="h-5 w-5 text-primary" />
                     <div>
                       <p className="text-sm text-muted-foreground">Capacité</p>
-                      <p className="font-medium">{room.capacity} personnes</p>
+                      <p className="font-medium">
+                        {room.capacity ? `${room.capacity} personnes` : 'Non renseignée'}
+                      </p>
                     </div>
                   </div>
 
-                  {selectedDate && (
-                    <div className="pt-4 border-t">
-                      <div className="flex items-baseline justify-between">
-                        <span className="text-sm text-muted-foreground">Tarif</span>
-                        <span className="text-2xl font-bold">{price}€</span>
+                  {room.location && (
+                    <div className="flex items-center gap-3">
+                      <Info className="h-5 w-5 text-primary" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Localisation</p>
+                        <p className="font-medium">{room.location}</p>
                       </div>
-                      {selectedDateObj && isWeekend(selectedDateObj.getDate()) && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Tarif week-end appliqué
-                        </p>
-                      )}
                     </div>
                   )}
                 </CardContent>
               </Card>
 
-              {/* Amenities */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Équipements</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2">
-                    {room.amenities.map((amenity: string) => (
-                      <li key={amenity} className="flex items-center gap-2 text-sm">
-                        <Check className="h-4 w-4 text-green-500" />
-                        {amenity}
-                      </li>
+              {selectedDate && selectedSlots.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Créneaux réservés</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2 text-sm text-muted-foreground">
+                    {selectedSlots.map((slot) => (
+                      <div key={`${slot.startsAt}-${slot.endsAt}`}>
+                        {new Date(slot.startsAt).toLocaleTimeString('fr-FR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}{' '}
+                        –{' '}
+                        {new Date(slot.endsAt).toLocaleTimeString('fr-FR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </div>
                     ))}
-                  </ul>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Info */}
               <Card className="bg-muted/50">

@@ -25,7 +25,7 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { versions, type Version } from '@/lib/api';
-import { formatDateTime, getInitials } from '@/lib/utils';
+import { cn, formatDateTime, getInitials } from '@/lib/utils';
 
 interface VersionHistoryProps {
   entityType: string;
@@ -141,11 +141,12 @@ export function VersionHistory({
                       >
                         {/* Timeline dot */}
                         <div
-                          className={`absolute left-3 w-4 h-4 rounded-full border-2 ${
+                          className={cn(
+                            'absolute left-3 w-4 h-4 rounded-full border-2',
                             index === 0
                               ? 'bg-primary border-primary'
                               : 'bg-background border-muted-foreground'
-                          }`}
+                          )}
                         />
 
                         <div className="p-4 rounded-lg border bg-card">

@@ -8,6 +8,7 @@ import { DocumentList } from '@/components/publications/document-card';
 import { YearFilter } from '@/components/publications/year-filter';
 import api, { type Article, type PublicationType as ApiPublicationType } from '@/lib/api';
 import { filterByYear, getAvailableYears, sortByDate, type NewsItem } from '@/lib/data/news';
+import { cn } from '@/lib/utils';
 
 const publicationCategories = [
   {
@@ -136,7 +137,12 @@ export default function PublicationsPage() {
                   href={`/mairie/publications/${category.slug}`}
                   className="group block p-6 bg-background border border-border/50 rounded-organic transition-all duration-300 hover:border-villiers-gold/30 hover:shadow-villiers-lg"
                 >
-                  <div className={`w-14 h-14 rounded-xl flex items-center justify-center mb-4 border ${category.color}`}>
+                  <div
+                    className={cn(
+                      'w-14 h-14 rounded-xl flex items-center justify-center mb-4 border',
+                      category.color
+                    )}
+                  >
                     <category.icon className="h-6 w-6" />
                   </div>
                   <h2 className="font-heading text-xl font-semibold text-foreground mb-2 group-hover:text-primary transition-colors flex items-center gap-2">

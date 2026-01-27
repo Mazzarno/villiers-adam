@@ -2,10 +2,12 @@ import { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { Calendar, MapPin, ArrowLeft, Share2, CalendarPlus } from 'lucide-react';
+import { Calendar, MapPin, ArrowLeft, CalendarPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ShareButton } from '@/components/share-button';
+import { MapEmbed } from '@/components/map/map-embed';
 import { formatDate, formatTime, cn } from '@/lib/utils';
 import api from '@/lib/api';
 
@@ -188,18 +190,25 @@ END:VCALENDAR`;
                 </a>
               </Button>
 
-              <Button variant="outline" className="w-full">
-                <Share2 className="h-4 w-4 mr-2" />
-                Partager
-              </Button>
+              <ShareButton
+                title={event.title}
+                text={event.description}
+                variant="outline"
+                className="w-full"
+              />
             </div>
 
-            {/* Map placeholder */}
+            {/* Map */}
             {event.coordinates && (
               <Card>
                 <CardContent className="p-0">
-                  <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
-                    <p className="text-muted-foreground text-sm">Carte interactive</p>
+                  <div className="aspect-video">
+                    <MapEmbed
+                      lat={event.coordinates.lat}
+                      lng={event.coordinates.lng}
+                      label="Voir sur OpenStreetMap"
+                      className="h-full w-full rounded-none border-0"
+                    />
                   </div>
                 </CardContent>
               </Card>

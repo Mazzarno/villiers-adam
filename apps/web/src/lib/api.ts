@@ -107,6 +107,16 @@ type ApiDirectoryEntry = {
   coverMedia?: ApiMedia | null;
 };
 
+type ApiRoom = {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  location?: string | null;
+  capacity?: number | null;
+  isActive: boolean;
+};
+
 type ApiCouncilMember = {
   id: string;
   name: string;
@@ -304,6 +314,16 @@ const mapDirectoryEntry = (entry: ApiDirectoryEntry): DirectoryEntry => ({
       : undefined,
 });
 
+const mapRoom = (room: ApiRoom): Room => ({
+  id: room.id,
+  name: room.name,
+  slug: room.slug,
+  description: room.description ?? undefined,
+  location: room.location ?? undefined,
+  capacity: room.capacity ?? undefined,
+  isActive: room.isActive,
+});
+
 const mapCouncilMember = (member: ApiCouncilMember): CouncilMember => ({
   id: member.id,
   name: member.name,
@@ -392,6 +412,16 @@ export interface Page {
   updatedAt: string;
 }
 
+export interface PageMenuItem {
+  id: string;
+  slug: string;
+  menuTitle?: string | null;
+  title: string;
+  menuOrder?: number | null;
+  parentId?: string | null;
+  children: PageMenuItem[];
+}
+
 export interface Article {
   id: string;
   title: string;
@@ -466,6 +496,16 @@ export interface DirectoryEntry {
   openingHours?: unknown;
   featuredImage?: string;
   coordinates?: { lat: number; lng: number };
+}
+
+export interface Room {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  location?: string;
+  capacity?: number;
+  isActive: boolean;
 }
 
 export interface CouncilMember {
@@ -571,6 +611,7 @@ export const api = {
       const data = await fetchAPI<ApiPage>(`/pages/${slug}`);
       return mapPage(data);
     },
+    menu: async () => fetchAPI<PageMenuItem[]>('/pages/menu'),
   },
 
   // Articles
@@ -645,6 +686,18 @@ export const api = {
     list: async (params?: { role?: string }) => {
       const data = await fetchAPI<ApiCouncilMember[]>('/council', { params });
       return data.map(mapCouncilMember);
+    },
+  },
+
+  // Rooms
+  rooms: {
+    list: async () => {
+      const data = await fetchAPI<ApiRoom[]>('/rooms');
+      return data.map(mapRoom);
+    },
+    get: async (slug: string) => {
+      const data = await fetchAPI<ApiRoom>(`/rooms/${slug}`);
+      return mapRoom(data);
     },
   },
 

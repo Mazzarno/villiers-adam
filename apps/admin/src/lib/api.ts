@@ -214,21 +214,29 @@ export const users = {
 };
 
 export const agenda = {
-  list: (params?: { type?: string }) =>
-    api<AgendaItem[]>(`/agenda?${new URLSearchParams(params as Record<string, string>).toString()}`),
+  list: (params?: { status?: string; search?: string }) =>
+    api<AgendaItem[]>(`/agenda/admin?${new URLSearchParams(params as Record<string, string>).toString()}`),
   get: (id: string) => api<AgendaItem>(`/agenda/${id}`),
   create: (data: Partial<AgendaItem>) => api<AgendaItem>('/agenda', { method: 'POST', body: data }),
   update: (id: string, data: Partial<AgendaItem>) => api<AgendaItem>(`/agenda/${id}`, { method: 'PATCH', body: data }),
   delete: (id: string) => api(`/agenda/${id}`, { method: 'DELETE' }),
+  publish: (id: string) => api<AgendaItem>(`/agenda/${id}/publish`, { method: 'POST' }),
+  schedule: (id: string, scheduledAt: string) =>
+    api<AgendaItem>(`/agenda/${id}/schedule`, { method: 'POST', body: { scheduledAt } }),
+  archive: (id: string) => api<AgendaItem>(`/agenda/${id}/archive`, { method: 'POST' }),
 };
 
 export const annuaire = {
-  list: (params?: { type?: string }) =>
-    api<DirectoryEntry[]>(`/annuaire?${new URLSearchParams(params as Record<string, string>).toString()}`),
+  list: (params?: { status?: string; type?: string; search?: string }) =>
+    api<DirectoryEntry[]>(`/annuaire/admin?${new URLSearchParams(params as Record<string, string>).toString()}`),
   get: (id: string) => api<DirectoryEntry>(`/annuaire/${id}`),
   create: (data: Partial<DirectoryEntry>) => api<DirectoryEntry>('/annuaire', { method: 'POST', body: data }),
   update: (id: string, data: Partial<DirectoryEntry>) => api<DirectoryEntry>(`/annuaire/${id}`, { method: 'PATCH', body: data }),
   delete: (id: string) => api(`/annuaire/${id}`, { method: 'DELETE' }),
+  publish: (id: string) => api<DirectoryEntry>(`/annuaire/${id}/publish`, { method: 'POST' }),
+  schedule: (id: string, scheduledAt: string) =>
+    api<DirectoryEntry>(`/annuaire/${id}/schedule`, { method: 'POST', body: { scheduledAt } }),
+  archive: (id: string) => api<DirectoryEntry>(`/annuaire/${id}/archive`, { method: 'POST' }),
 };
 
 export const reservations = {
@@ -237,6 +245,14 @@ export const reservations = {
   get: (id: string) => api<Reservation>(`/reservations/${id}`),
   updateStatus: (id: string, status: string) =>
     api<Reservation>(`/reservations/${id}/status`, { method: 'PATCH', body: { status } }),
+};
+
+export const rooms = {
+  list: () => api<Room[]>('/rooms/admin/all'),
+  get: (id: string) => api<Room>(`/rooms/admin/${id}`),
+  create: (data: Partial<Room>) => api<Room>('/rooms/admin', { method: 'POST', body: data }),
+  update: (id: string, data: Partial<Room>) => api<Room>(`/rooms/admin/${id}`, { method: 'PUT', body: data }),
+  delete: (id: string) => api(`/rooms/admin/${id}`, { method: 'DELETE' }),
 };
 
 export const forms = {
@@ -255,6 +271,8 @@ export const procedures = {
   update: (id: string, data: Partial<Procedure>) => api<Procedure>(`/procedures/${id}`, { method: 'PATCH', body: data }),
   delete: (id: string) => api(`/procedures/${id}`, { method: 'DELETE' }),
   publish: (id: string) => api<Procedure>(`/procedures/${id}/publish`, { method: 'POST' }),
+  schedule: (id: string, scheduledAt: string) =>
+    api<Procedure>(`/procedures/${id}/schedule`, { method: 'POST', body: { scheduledAt } }),
   archive: (id: string) => api<Procedure>(`/procedures/${id}/archive`, { method: 'POST' }),
 };
 
@@ -479,6 +497,9 @@ export type AgendaItem = {
   location?: string;
   isRecurring: boolean;
   recurrenceRule?: string;
+  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED';
+  publishedAt?: string;
+  scheduledAt?: string;
   createdAt: string;
 };
 
@@ -487,13 +508,21 @@ export type DirectoryEntry = {
   name: string;
   type: 'ASSOCIATION' | 'ENTERPRISE' | 'COMMERCE';
   description?: string;
-  address?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  postalCode?: string;
+  city?: string;
+  country?: string;
   phone?: string;
   email?: string;
   website?: string;
   latitude?: number;
   longitude?: number;
   openingHours?: Record<string, string>;
+  coverMediaId?: string;
+  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED';
+  publishedAt?: string;
+  scheduledAt?: string;
   createdAt: string;
 };
 
@@ -509,6 +538,21 @@ export type Reservation = {
   notes?: string;
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
   createdAt: string;
+};
+
+export type Room = {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  location?: string;
+  capacity?: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  _count?: {
+    reservations: number;
+  };
 };
 
 export type FormSubmission = {

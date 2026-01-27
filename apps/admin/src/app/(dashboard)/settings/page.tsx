@@ -201,7 +201,7 @@ export default function SettingsPage() {
     }
   };
 
-  const openUserDialog = (userToEdit?: User) => {
+  const openUserDialog = React.useCallback((userToEdit?: User) => {
     if (userToEdit) {
       setEditingUser(userToEdit);
       setUserForm({
@@ -217,7 +217,7 @@ export default function SettingsPage() {
       setUserForm(defaultUserForm);
     }
     setUserDialogOpen(true);
-  };
+  }, [setEditingUser, setUserForm, setUserDialogOpen, defaultUserForm]);
 
   const handleUserSave = async () => {
     setIsSavingUser(true);
@@ -255,7 +255,7 @@ export default function SettingsPage() {
     }
   };
 
-  const handleUserDelete = async (userId: string) => {
+  const handleUserDelete = React.useCallback(async (userId: string) => {
     if (!confirm('Supprimer cet utilisateur ?')) return;
     try {
       await users.delete(userId);
@@ -265,49 +265,52 @@ export default function SettingsPage() {
       console.error('Failed to delete user:', error);
       toast.error('Erreur lors de la suppression');
     }
-  };
+  }, [setUsersData]);
 
-  const userColumns: ColumnDef<User>[] = [
-    {
-      accessorKey: 'firstName',
-      header: 'Utilisateur',
-      cell: ({ row }) => (
-        <div>
-          <p className="font-medium">{row.original.firstName} {row.original.lastName}</p>
-          <p className="text-sm text-muted-foreground">{row.original.email}</p>
-        </div>
-      ),
-    },
-    {
-      accessorKey: 'role',
-      header: 'Rôle',
-      cell: ({ row }) => (
-        <Badge variant="secondary">{row.original.role}</Badge>
-      ),
-    },
-    {
-      accessorKey: 'isActive',
-      header: 'Statut',
-      cell: ({ row }) => (
-        <Badge variant={row.original.isActive ? 'success' : 'secondary'}>
-          {row.original.isActive ? 'Actif' : 'Inactif'}
-        </Badge>
-      ),
-    },
-    {
-      id: 'actions',
-      cell: ({ row }) => (
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => openUserDialog(row.original)}>
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" onClick={() => handleUserDelete(row.original.id)}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      ),
-    },
-  ];
+  const userColumns = React.useMemo<ColumnDef<User>[]>(
+    () => [
+      {
+        accessorKey: 'firstName',
+        header: 'Utilisateur',
+        cell: ({ row }) => (
+          <div>
+            <p className="font-medium">{row.original.firstName} {row.original.lastName}</p>
+            <p className="text-sm text-muted-foreground">{row.original.email}</p>
+          </div>
+        ),
+      },
+      {
+        accessorKey: 'role',
+        header: 'Rôle',
+        cell: ({ row }) => (
+          <Badge variant="secondary">{row.original.role}</Badge>
+        ),
+      },
+      {
+        accessorKey: 'isActive',
+        header: 'Statut',
+        cell: ({ row }) => (
+          <Badge variant={row.original.isActive ? 'success' : 'secondary'}>
+            {row.original.isActive ? 'Actif' : 'Inactif'}
+          </Badge>
+        ),
+      },
+      {
+        id: 'actions',
+        cell: ({ row }) => (
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => openUserDialog(row.original)}>
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => handleUserDelete(row.original.id)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    [openUserDialog, handleUserDelete]
+  );
 
   if (isLoading) {
     return (

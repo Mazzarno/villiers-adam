@@ -1,9 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import Link from 'next/link';
 import { ColumnDef } from '@tanstack/react-table';
-import { MoreHorizontal, Plus, ArrowUpDown, Eye, Pencil, Trash2, Archive, Send, ExternalLink } from 'lucide-react';
+import { MoreHorizontal, Plus, ArrowUpDown, Pencil, Trash2, Archive, Send, ExternalLink, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -55,6 +54,10 @@ export default function DemarchesPage() {
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [formData, setFormData] = React.useState<FormData>(defaultFormData);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [scheduleDialogOpen, setScheduleDialogOpen] = React.useState(false);
+  const [scheduleValue, setScheduleValue] = React.useState('');
+  const [schedulingId, setSchedulingId] = React.useState<string | null>(null);
+  const [isScheduling, setIsScheduling] = React.useState(false);
 
   React.useEffect(() => {
     loadData();
@@ -119,6 +122,38 @@ export default function DemarchesPage() {
       loadData();
     } catch (error) {
       console.error('Failed to archive:', error);
+    }
+  };
+
+  const toDateTimeLocal = (value?: string | null) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const pad = (val: number) => String(val).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+      date.getHours(),
+    )}:${pad(date.getMinutes())}`;
+  };
+
+  const openScheduleDialog = (item: Procedure) => {
+    setSchedulingId(item.id);
+    setScheduleValue(toDateTimeLocal(item.scheduledAt ?? item.updatedAt));
+    setScheduleDialogOpen(true);
+  };
+
+  const handleSchedule = async () => {
+    if (!schedulingId || !scheduleValue) return;
+    setIsScheduling(true);
+    try {
+      await procedures.schedule(schedulingId, new Date(scheduleValue).toISOString());
+      setScheduleDialogOpen(false);
+      setSchedulingId(null);
+      setScheduleValue('');
+      loadData();
+    } catch (error) {
+      console.error('Failed to schedule:', error);
+    } finally {
+      setIsScheduling(false);
     }
   };
 
@@ -224,8 +259,14 @@ export default function DemarchesPage() {
                   Ouvrir le lien
                 </DropdownMenuItem>
               )}
+              {item.status !== 'ARCHIVED' && (
+                <DropdownMenuItem onClick={() => openScheduleDialog(item)}>
+                  <Clock className="mr-2 h-4 w-4" />
+                  Programmer
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
-              {item.status === 'DRAFT' && (
+              {(item.status === 'DRAFT' || item.status === 'SCHEDULED') && (
                 <DropdownMenuItem onClick={() => handlePublish(item.id)}>
                   <Send className="mr-2 h-4 w-4" />
                   Publier
@@ -331,6 +372,36 @@ export default function DemarchesPage() {
             </Button>
             <Button onClick={handleSave} disabled={isSaving || !formData.title}>
               {isSaving ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Programmer la démarche</DialogTitle>
+            <DialogDescription>
+              Choisissez la date et l&apos;heure de publication.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="scheduleAt">Date de publication</Label>
+              <Input
+                id="scheduleAt"
+                type="datetime-local"
+                value={scheduleValue}
+                onChange={(e) => setScheduleValue(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setScheduleDialogOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleSchedule} disabled={isScheduling || !scheduleValue}>
+              {isScheduling ? 'Programmation...' : 'Programmer'}
             </Button>
           </DialogFooter>
         </DialogContent>

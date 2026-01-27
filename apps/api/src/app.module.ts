@@ -19,6 +19,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { HealthModule } from './modules/health/health.module';
 import { ReservationsModule } from './modules/reservations/reservations.module';
+import { RoomsModule } from './modules/rooms/rooms.module';
 import { FormsModule } from './modules/forms/forms.module';
 import { ExportModule } from './modules/export/export.module';
 import { PrivacyModule } from './modules/privacy/privacy.module';
@@ -66,6 +67,7 @@ import { TransportsModule } from './modules/transports/transports.module';
     SearchModule,
     EmailModule,
     ReservationsModule,
+    RoomsModule,
     FormsModule,
     ExportModule,
     PrivacyModule,

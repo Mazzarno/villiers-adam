@@ -22,14 +22,21 @@ export class SearchService {
 
   async search(query: string, type?: IndexName, limit = 20) {
     if (!this.client) {
-      return { hits: [] };
+      return {
+        articles: [],
+        pages: [],
+        events: [],
+        directory: [],
+        procedures: [],
+        total: 0,
+      };
     }
 
     if (type) {
       return this.client.index(type).search(query, { limit });
     }
 
-    return this.client.multiSearch({
+    const rawResults = await this.client.multiSearch({
       queries: [
         { indexUid: 'pages', q: query, limit },
         { indexUid: 'articles', q: query, limit },
@@ -38,6 +45,22 @@ export class SearchService {
         { indexUid: 'procedures', q: query, limit },
       ],
     });
+
+    // Mapper au format attendu par le client
+    const articles = rawResults.results.find((r) => r.indexUid === 'articles')?.hits || [];
+    const pages = rawResults.results.find((r) => r.indexUid === 'pages')?.hits || [];
+    const events = rawResults.results.find((r) => r.indexUid === 'events')?.hits || [];
+    const directory = rawResults.results.find((r) => r.indexUid === 'directory')?.hits || [];
+    const procedures = rawResults.results.find((r) => r.indexUid === 'procedures')?.hits || [];
+
+    return {
+      articles,
+      pages,
+      events,
+      directory,
+      procedures,
+      total: articles.length + pages.length + events.length + directory.length + procedures.length,
+    };
   }
 
   async reindexAll() {

@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import dynamic from 'next/dynamic';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -37,10 +38,18 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { TiptapEditor } from '@/components/editor/tiptap-editor';
-import { MediaPicker } from '@/components/media/media-picker';
 import { slugify } from '@/lib/utils';
 import { pages, type Page, type Article, type Event, type Media, type ArticleType, type PublicationType } from '@/lib/api';
+
+const TiptapEditor = dynamic(
+  () => import('@/components/editor/tiptap-editor').then((mod) => mod.TiptapEditor),
+  { ssr: false }
+);
+
+const MediaPicker = dynamic(
+  () => import('@/components/media/media-picker').then((mod) => mod.MediaPicker),
+  { ssr: false }
+);
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 const WEB_URL = process.env.NEXT_PUBLIC_WEB_URL || 'http://localhost:3000';
@@ -1013,24 +1022,30 @@ export function ContentForm({
       </div>
 
       {/* Media Picker Dialog */}
-      <MediaPicker
-        open={showMediaPicker}
-        onOpenChange={setShowMediaPicker}
-        onSelect={handleImageSelect}
-        accept={['image/*']}
-      />
-      <MediaPicker
-        open={showDocumentPicker}
-        onOpenChange={setShowDocumentPicker}
-        onSelect={handleDocumentSelect}
-        accept={['application/pdf']}
-      />
-      <MediaPicker
-        open={showBlockMediaPicker}
-        onOpenChange={setShowBlockMediaPicker}
-        onSelect={handleBlockMediaSelect}
-        accept={['image/*']}
-      />
+      {showMediaPicker && (
+        <MediaPicker
+          open={showMediaPicker}
+          onOpenChange={setShowMediaPicker}
+          onSelect={handleImageSelect}
+          accept={['image/*']}
+        />
+      )}
+      {showDocumentPicker && (
+        <MediaPicker
+          open={showDocumentPicker}
+          onOpenChange={setShowDocumentPicker}
+          onSelect={handleDocumentSelect}
+          accept={['application/pdf']}
+        />
+      )}
+      {showBlockMediaPicker && (
+        <MediaPicker
+          open={showBlockMediaPicker}
+          onOpenChange={setShowBlockMediaPicker}
+          onSelect={handleBlockMediaSelect}
+          accept={['image/*']}
+        />
+      )}
     </form>
   );
 }

@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import Link from 'next/link';
+import Script from 'next/script';
 import { motion } from 'framer-motion';
 import { Facebook, ExternalLink, ThumbsUp, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,30 +13,21 @@ const FACEBOOK_PAGE_NAME = 'Villiers-Adam';
 export function FacebookFeed() {
   const [isLoaded, setIsLoaded] = React.useState(false);
 
-  // Charger le SDK Facebook
   React.useEffect(() => {
-    // Vérifier si le SDK est déjà chargé
-    if (typeof window !== 'undefined' && (window as unknown as { FB: unknown }).FB) {
+    if (typeof window !== 'undefined' && (window as unknown as { FB?: unknown }).FB) {
       setIsLoaded(true);
-      return;
     }
-
-    // Charger le SDK Facebook
-    const loadFacebookSDK = () => {
-      const script = document.createElement('script');
-      script.src = 'https://connect.facebook.net/fr_FR/sdk.js#xfbml=1&version=v18.0';
-      script.async = true;
-      script.defer = true;
-      script.crossOrigin = 'anonymous';
-      script.onload = () => setIsLoaded(true);
-      document.body.appendChild(script);
-    };
-
-    loadFacebookSDK();
   }, []);
 
   return (
-    <section className="py-20 lg:py-28 relative overflow-hidden bg-gradient-to-b from-muted/30 to-background">
+    <>
+      <Script
+        id="facebook-sdk"
+        src="https://connect.facebook.net/fr_FR/sdk.js#xfbml=1&version=v18.0"
+        strategy="lazyOnload"
+        onLoad={() => setIsLoaded(true)}
+      />
+      <section className="py-20 lg:py-28 relative overflow-hidden bg-gradient-to-b from-muted/30 to-background">
       {/* Formes décoratives */}
       <div className="absolute top-10 right-[10%] w-60 h-60 rounded-full border border-villiers-gold/10" />
       <div className="absolute bottom-20 left-[5%] w-40 h-40 rounded-full border border-villiers-blue/10" />
@@ -204,5 +196,6 @@ export function FacebookFeed() {
       {/* Root div pour Facebook SDK */}
       <div id="fb-root" />
     </section>
+    </>
   );
 }

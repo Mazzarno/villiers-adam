@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import dynamic from 'next/dynamic';
 import { MapPin, Building2, GraduationCap, Heart, Store, Dumbbell } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 export const metadata: Metadata = {
   title: 'Carte interactive',
@@ -125,7 +126,7 @@ export default function CartePage() {
                   const Icon = category.icon;
                   return (
                     <div key={category.id} className="flex items-center gap-3">
-                      <div className={`w-6 h-6 rounded-full ${category.color} flex items-center justify-center`}>
+                      <div className={cn('w-6 h-6 rounded-full flex items-center justify-center', category.color)}>
                         <Icon className="h-3 w-3 text-white" />
                       </div>
                       <span className="text-sm">{category.label}</span>

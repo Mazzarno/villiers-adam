@@ -5,6 +5,7 @@ import { Header } from '@/components/layout/header';
 import { Footer } from '@/components/layout/footer';
 import { SkipLink } from '@/components/layout/skip-link';
 import { Toaster } from 'sonner';
+import { cn } from '@/lib/utils';
 import '@/styles/globals.css';
 
 const fraunces = Fraunces({
@@ -83,7 +84,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" suppressHydrationWarning>
-      <body className={`${fraunces.variable} ${sourceSerif.variable} ${dmMono.variable} font-sans antialiased bg-linen`}>
+      <body
+        className={cn(
+          fraunces.variable,
+          sourceSerif.variable,
+          dmMono.variable,
+          'font-sans antialiased bg-linen'
+        )}
+      >
         <Providers>
           <SkipLink />
           <div className="flex min-h-screen flex-col texture-grain">

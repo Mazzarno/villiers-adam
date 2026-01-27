@@ -14,7 +14,8 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn, formatDate } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
+import type { PageBlock } from '@/lib/api';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL || 'http://localhost:3002';
@@ -27,6 +28,7 @@ interface PreviewData {
   slug: string;
   summary?: string | null;
   content?: string;
+  blocks?: PageBlock[] | null;
   status: string;
   publishedAt?: string | null;
   createdAt: string;
@@ -40,6 +42,20 @@ interface PreviewData {
   endsAt?: string;
   locationName?: string | null;
   address?: string | null;
+}
+
+function normalizeBlocks(value?: unknown): PageBlock[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value as PageBlock[];
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? (parsed as PageBlock[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
 
 async function fetchPreview(
@@ -85,6 +101,7 @@ async function fetchPreview(
     return {
       ...data,
       content,
+      blocks: normalizeBlocks(data.blocks),
     };
   } catch {
     return null;
@@ -95,6 +112,49 @@ function resolveMediaUrl(url?: string) {
   if (!url) return undefined;
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
   return `${API_URL}${url}`;
+}
+
+function renderBlock(block: PageBlock, index: number) {
+  return (
+    <div key={block.id || index} className="rounded-organic border border-border/50 p-6">
+      {block.title && (
+        <h2 className="font-heading text-xl font-semibold text-foreground mb-3">
+          {block.title}
+        </h2>
+      )}
+      {block.type === 'section' && block.body && (
+        <div
+          className="prose prose-villiers max-w-none"
+          dangerouslySetInnerHTML={{ __html: block.body }}
+        />
+      )}
+      {block.type === 'cta' && (
+        <div className="space-y-4">
+          {block.body && (
+            <p className="text-muted-foreground">{block.body}</p>
+          )}
+          {block.linkUrl && (
+            <Link
+              href={block.linkUrl}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground text-sm font-medium"
+            >
+              {block.linkLabel || 'En savoir plus'}
+            </Link>
+          )}
+        </div>
+      )}
+      {block.type === 'media' && block.mediaUrl && (
+        <div className="relative aspect-[16/9] rounded-organic overflow-hidden">
+          <Image
+            src={resolveMediaUrl(block.mediaUrl) || ''}
+            alt={block.mediaAlt || block.title || 'Média'}
+            fill
+            className="object-cover"
+          />
+        </div>
+      )}
+    </div>
+  );
 }
 
 function PreviewBanner({ type, id }: { type: ContentType; id: string }) {
@@ -136,6 +196,8 @@ function PreviewBanner({ type, id }: { type: ContentType; id: string }) {
 }
 
 function PagePreview({ data }: { data: PreviewData }) {
+  const hasBlocks = !!data.blocks && data.blocks.length > 0;
+
   return (
     <div className="min-h-screen pt-12">
       {/* Hero */}
@@ -192,13 +254,19 @@ function PagePreview({ data }: { data: PreviewData }) {
             </motion.div>
           )}
 
-          {data.content && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="prose-villiers"
-              dangerouslySetInnerHTML={{ __html: data.content }}
-            />
+          {hasBlocks ? (
+            <div className="space-y-8">
+              {data.blocks?.map((block, index) => renderBlock(block, index))}
+            </div>
+          ) : (
+            data.content && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="prose-villiers"
+                dangerouslySetInnerHTML={{ __html: data.content }}
+              />
+            )
           )}
         </div>
       </section>
