@@ -170,6 +170,7 @@ export default function TransportsPage() {
   const columns: ColumnDef<TransportInfo>[] = [
     {
       accessorKey: 'title',
+      meta: { mobile: 'primary', label: 'Titre' },
       header: ({ column }) => (
         <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
           Titre
@@ -187,11 +188,13 @@ export default function TransportsPage() {
     },
     {
       accessorKey: 'status',
+      meta: { label: 'Statut' },
       header: 'Statut',
       cell: ({ row }) => <StatusBadge status={row.original.status} />,
     },
     {
       accessorKey: 'updatedAt',
+      meta: { mobile: 'hidden', label: 'Màj' },
       header: 'Màj',
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">{formatDate(row.original.updatedAt)}</span>
@@ -199,6 +202,7 @@ export default function TransportsPage() {
     },
     {
       id: 'actions',
+      meta: { mobile: 'actions', label: 'Actions' },
       cell: ({ row }) => {
         const info = row.original;
         return (
@@ -245,12 +249,12 @@ export default function TransportsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Transports</h1>
           <p className="text-muted-foreground">Gérez les informations de transport public.</p>
         </div>
-        <Button onClick={handleCreate}>
+        <Button onClick={handleCreate} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           Ajouter
         </Button>

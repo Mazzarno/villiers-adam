@@ -22,6 +22,12 @@ enum ContentStatus {
   ARCHIVED
 }
 
+enum AgendaType {
+  COMMUNAL
+  ASSOCIATIF
+  DECHETS
+}
+
 enum DirectoryType {
   ASSOCIATION
   ENTERPRISE
@@ -32,6 +38,24 @@ enum MediaType {
   IMAGE
   VIDEO
   DOCUMENT
+}
+
+enum ReservationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum FormType {
+  CONTACT
+  SIGNALEMENT
+}
+
+enum FormStatus {
+  NEW
+  IN_PROGRESS
+  CLOSED
 }
 
 enum ArticleType {
@@ -79,10 +103,14 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  createdPages           Page[]           @relation("PageCreatedBy")
+  updatedPages           Page[]           @relation("PageUpdatedBy")
   createdArticles        Article[]        @relation("ArticleCreatedBy")
   updatedArticles        Article[]        @relation("ArticleUpdatedBy")
   createdEvents          Event[]          @relation("EventCreatedBy")
   updatedEvents          Event[]          @relation("EventUpdatedBy")
+  createdAgendaItems     AgendaItem[]     @relation("AgendaCreatedBy")
+  updatedAgendaItems     AgendaItem[]     @relation("AgendaUpdatedBy")
   createdDirectoryEntries DirectoryEntry[] @relation("DirectoryCreatedBy")
   updatedDirectoryEntries DirectoryEntry[] @relation("DirectoryUpdatedBy")
   createdProcedures      Procedure[]      @relation("ProcedureCreatedBy")
@@ -93,17 +121,51 @@ model User {
   updatedMunicipalServices MunicipalService[] @relation("ServiceUpdatedBy")
   createdTransportInfos  TransportInfo[]  @relation("TransportCreatedBy")
   updatedTransportInfos  TransportInfo[]  @relation("TransportUpdatedBy")
+  reservationsHandled    Reservation[]    @relation("ReservationHandledBy")
   createdMedia           Media[]          @relation("MediaCreatedBy")
   sessions               Session[]
   passwordResetTokens    PasswordResetToken[]
-  notifications          Notification[]
-  exportArchives         ExportArchive[]  @relation("ExportCreatedBy")
 
   auditLogs AuditLog[]
   versions  Version[]
 
   @@index([email])
   @@index([role])
+}
+
+model Page {
+  id           String        @id @default(cuid())
+  title        String
+  slug         String        @unique
+  summary      String?
+  content      Json
+  blocks       Json?
+  metaTitle    String?
+  metaDescription String?
+  menuTitle    String?
+  showInMenu   Boolean       @default(false)
+  menuOrder    Int           @default(0)
+  parentId     String?
+  template     String?
+  status       ContentStatus @default(DRAFT)
+  publishedAt  DateTime?
+  scheduledAt  DateTime?
+  coverMediaId String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  createdById  String
+  updatedById  String?
+
+  createdBy User   @relation("PageCreatedBy", fields: [createdById], references: [id])
+  updatedBy User?  @relation("PageUpdatedBy", fields: [updatedById], references: [id])
+  parent   Page?   @relation("PageHierarchy", fields: [parentId], references: [id])
+  children Page[]  @relation("PageHierarchy")
+  coverMedia Media? @relation("PageCoverMedia", fields: [coverMediaId], references: [id])
+  media      PageMedia[]
+
+  @@index([status, publishedAt])
+  @@index([scheduledAt])
+  @@index([parentId])
 }
 
 model Article {
@@ -171,6 +233,31 @@ model Event {
   @@index([status, publishedAt])
   @@index([scheduledAt])
   @@index([startsAt])
+}
+
+model AgendaItem {
+  id           String        @id @default(cuid())
+  title        String
+  description  String?
+  agendaType   AgendaType
+  startsAt     DateTime
+  endsAt       DateTime?
+  isAllDay     Boolean       @default(false)
+  recurrenceRule String?
+  status       ContentStatus @default(DRAFT)
+  publishedAt  DateTime?
+  scheduledAt  DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  createdById  String
+  updatedById  String?
+
+  createdBy User  @relation("AgendaCreatedBy", fields: [createdById], references: [id])
+  updatedBy User? @relation("AgendaUpdatedBy", fields: [updatedById], references: [id])
+
+  @@index([agendaType])
+  @@index([startsAt])
+  @@index([status, publishedAt])
 }
 
 model DirectoryEntry {
@@ -337,6 +424,7 @@ model Media {
 
   createdBy User? @relation("MediaCreatedBy", fields: [createdById], references: [id])
 
+  pageCovers      Page[]           @relation("PageCoverMedia")
   articleCovers   Article[]        @relation("ArticleCoverMedia")
   articleDocuments Article[]       @relation("ArticleDocumentMedia")
   eventCovers     Event[]          @relation("EventCoverMedia")
@@ -346,10 +434,22 @@ model Media {
   serviceCovers   MunicipalService[] @relation("ServiceCoverMedia")
   transportCovers TransportInfo[]  @relation("TransportCoverMedia")
 
+  pageMedia       PageMedia[]
   articleMedia    ArticleMedia[]
   eventMedia      EventMedia[]
   procedureMedia  ProcedureMedia[]
   directoryMedia  DirectoryEntryMedia[]
+}
+
+model PageMedia {
+  pageId  String
+  mediaId String
+  order   Int @default(0)
+
+  page  Page  @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([pageId, mediaId])
 }
 
 model ArticleMedia {
@@ -394,6 +494,63 @@ model DirectoryEntryMedia {
   media          Media          @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
   @@id([directoryEntryId, mediaId])
+}
+
+model Room {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  location    String?
+  capacity    Int?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  reservations Reservation[]
+}
+
+model Reservation {
+  id            String            @id @default(cuid())
+  roomId        String
+  status        ReservationStatus @default(PENDING)
+  startsAt      DateTime
+  endsAt        DateTime
+  requesterName String
+  requesterEmail String
+  requesterPhone String?
+  notes         String?
+  handledById   String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  room       Room  @relation(fields: [roomId], references: [id])
+  handledBy  User? @relation("ReservationHandledBy", fields: [handledById], references: [id])
+
+  @@index([status])
+  @@index([startsAt])
+}
+
+model FormSubmission {
+  id         String     @id @default(cuid())
+  type       FormType
+  status     FormStatus @default(NEW)
+  subject    String?
+  message    String
+  name       String?
+  email      String?
+  phone      String?
+  data       Json?
+  honeypot   String?
+  isBot      Boolean    @default(false)
+  ip         String?
+  userAgent  String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([isBot])
 }
 
 model NewsletterSubscription {
@@ -473,22 +630,6 @@ model AuditLog {
   @@index([entity, entityId])
 }
 
-model Notification {
-  id        String   @id @default(cuid())
-  userId    String
-  type      String
-  title     String
-  message   String
-  actionUrl String?
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, isRead])
-  @@index([createdAt])
-}
-
 model Session {
   id               String   @id @default(cuid())
   userId           String
@@ -515,19 +656,4 @@ model PasswordResetToken {
 
   @@index([userId])
   @@index([expiresAt])
-}
-
-model ExportArchive {
-  id          String   @id @default(cuid())
-  filename    String
-  storageKey  String   @unique
-  size        Int
-  format      String   @default("zip")
-  createdById String
-  createdAt   DateTime @default(now())
-
-  createdBy User @relation("ExportCreatedBy", fields: [createdById], references: [id])
-
-  @@index([createdById])
-  @@index([createdAt])
 }

@@ -271,6 +271,7 @@ export default function SettingsPage() {
     () => [
       {
         accessorKey: 'firstName',
+        meta: { mobile: 'primary', label: 'Utilisateur' },
         header: 'Utilisateur',
         cell: ({ row }) => (
           <div>
@@ -281,6 +282,7 @@ export default function SettingsPage() {
       },
       {
         accessorKey: 'role',
+        meta: { label: 'Rôle' },
         header: 'Rôle',
         cell: ({ row }) => (
           <Badge variant="secondary">{row.original.role}</Badge>
@@ -288,6 +290,7 @@ export default function SettingsPage() {
       },
       {
         accessorKey: 'isActive',
+        meta: { label: 'Statut' },
         header: 'Statut',
         cell: ({ row }) => (
           <Badge variant={row.original.isActive ? 'success' : 'secondary'}>
@@ -297,6 +300,7 @@ export default function SettingsPage() {
       },
       {
         id: 'actions',
+        meta: { mobile: 'actions', label: 'Actions' },
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="icon" onClick={() => openUserDialog(row.original)}>
@@ -389,11 +393,11 @@ export default function SettingsPage() {
               <CardDescription>Gestion des comptes et des rôles.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="text-sm text-muted-foreground">
                   {usersData.length} compte(s)
                 </div>
-                <Button onClick={() => openUserDialog()}>
+                <Button onClick={() => openUserDialog()} className="w-full sm:w-auto">
                   <UserPlus className="mr-2 h-4 w-4" />
                   Ajouter un utilisateur
                 </Button>

@@ -76,6 +76,7 @@ export default function PagesListPage() {
     () => [
       {
         accessorKey: 'title',
+        meta: { mobile: 'primary', label: 'Titre' },
         header: ({ column }) => (
           <Button
             variant="ghost"
@@ -94,6 +95,7 @@ export default function PagesListPage() {
       },
       {
         accessorKey: 'status',
+        meta: { label: 'Statut' },
         header: 'Statut',
         cell: ({ row }) => <StatusBadge status={row.original.status} />,
         filterFn: (row, id, value) => {
@@ -102,6 +104,7 @@ export default function PagesListPage() {
       },
       {
         accessorKey: 'author',
+        meta: { mobile: 'hidden', label: 'Auteur' },
         header: 'Auteur',
         cell: ({ row }) => (
           <span className="text-sm">
@@ -113,6 +116,7 @@ export default function PagesListPage() {
       },
       {
         accessorKey: 'updatedAt',
+        meta: { mobile: 'hidden', label: 'Modifié' },
         header: ({ column }) => (
           <Button
             variant="ghost"
@@ -130,6 +134,7 @@ export default function PagesListPage() {
       },
       {
         id: 'actions',
+        meta: { mobile: 'actions', label: 'Actions' },
         cell: ({ row }) => {
           const page = row.original;
           return (
@@ -186,14 +191,14 @@ export default function PagesListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Pages</h1>
           <p className="text-muted-foreground">
             Gérez les pages statiques de votre site
           </p>
         </div>
-        <Button asChild>
+        <Button asChild className="w-full sm:w-auto">
           <Link href="/content/pages/new">
             <Plus className="mr-2 h-4 w-4" />
             Nouvelle page

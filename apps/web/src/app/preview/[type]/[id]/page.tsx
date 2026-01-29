@@ -79,6 +79,7 @@ async function fetchPreview(
     });
 
     if (!response.ok) {
+      console.error(`[Preview] Failed to fetch ${type}:`, response.status, response.statusText);
       return null;
     }
 
@@ -526,7 +527,7 @@ export default function PreviewPage() {
 
       const result = await fetchPreview(type, id, token);
       if (!result) {
-        setError('Contenu introuvable ou accès non autorisé');
+        setError('Contenu introuvable ou session expirée. Veuillez vous reconnecter dans l\'admin et réessayer.');
       } else {
         setData(result);
       }

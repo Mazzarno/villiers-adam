@@ -189,6 +189,7 @@ export default function ServicesMunicipauxPage() {
   const columns: ColumnDef<MunicipalService>[] = [
     {
       accessorKey: 'name',
+      meta: { mobile: 'primary', label: 'Nom' },
       header: ({ column }) => (
         <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}>
           Nom
@@ -206,11 +207,13 @@ export default function ServicesMunicipauxPage() {
     },
     {
       accessorKey: 'status',
+      meta: { label: 'Statut' },
       header: 'Statut',
       cell: ({ row }) => <StatusBadge status={row.original.status} />,
     },
     {
       accessorKey: 'updatedAt',
+      meta: { mobile: 'hidden', label: 'Màj' },
       header: 'Màj',
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">{formatDate(row.original.updatedAt)}</span>
@@ -218,6 +221,7 @@ export default function ServicesMunicipauxPage() {
     },
     {
       id: 'actions',
+      meta: { mobile: 'actions', label: 'Actions' },
       cell: ({ row }) => {
         const service = row.original;
         return (
@@ -264,12 +268,12 @@ export default function ServicesMunicipauxPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Services municipaux</h1>
           <p className="text-muted-foreground">Gérez les services de la mairie.</p>
         </div>
-        <Button onClick={handleCreate}>
+        <Button onClick={handleCreate} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           Ajouter
         </Button>

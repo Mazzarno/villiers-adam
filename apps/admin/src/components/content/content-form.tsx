@@ -816,10 +816,17 @@ export function ContentForm({
                     onClick={() => {
                       const token = localStorage.getItem('accessToken');
                       const contentId = initialData?.id;
+
                       if (!contentId) {
                         alert('Veuillez d\'abord enregistrer le contenu avant de prévisualiser.');
                         return;
                       }
+
+                      if (!token) {
+                        alert('Session expirée. Veuillez vous reconnecter.');
+                        return;
+                      }
+
                       const previewUrl = `${WEB_URL}/preview/${type}/${contentId}?token=${token}`;
                       window.open(previewUrl, '_blank');
                     }}

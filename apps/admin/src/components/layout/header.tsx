@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bell, Search, Moon, Sun, User, LogOut } from 'lucide-react';
+import { Bell, Search, Moon, Sun, User, LogOut, Menu } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,6 +21,7 @@ import { useAuth } from '@/lib/auth-context';
 
 interface HeaderProps {
   sidebarCollapsed: boolean;
+  onOpenMobileNav?: () => void;
 }
 
 const breadcrumbMap: Record<string, string> = {
@@ -40,7 +41,7 @@ const breadcrumbMap: Record<string, string> = {
   '/settings': 'Paramètres',
 };
 
-export function Header({ sidebarCollapsed }: HeaderProps) {
+export function Header({ sidebarCollapsed, onOpenMobileNav }: HeaderProps) {
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
   const { user, logout } = useAuth();
@@ -75,23 +76,37 @@ export function Header({ sidebarCollapsed }: HeaderProps) {
   return (
     <header
       className={cn(
-        'fixed top-0 right-0 z-30 flex h-16 items-center justify-between border-b bg-background px-6 transition-[left] duration-200',
-        sidebarCollapsed ? 'left-[72px]' : 'left-64',
+        'fixed top-0 right-0 z-30 flex h-16 items-center justify-between border-b bg-background px-4 sm:px-6 transition-[left] duration-200',
+        'left-0',
+        sidebarCollapsed ? 'lg:left-[72px]' : 'lg:left-64',
       )}
     >
       {/* Breadcrumb */}
-      <nav className="flex items-center space-x-2 text-sm">
+      <nav className="flex items-center gap-2 text-sm min-w-0">
+        {onOpenMobileNav && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="lg:hidden"
+            onClick={onOpenMobileNav}
+          >
+            <Menu className="h-5 w-5" />
+            <span className="sr-only">Ouvrir la navigation</span>
+          </Button>
+        )}
         {breadcrumbs.map((crumb, index) => (
           <React.Fragment key={crumb.href}>
             {index > 0 && (
               <span className="text-muted-foreground">/</span>
             )}
             {index === breadcrumbs.length - 1 ? (
-              <span className="font-medium text-foreground">{crumb.name}</span>
+              <span className="font-medium text-foreground truncate max-w-[140px] sm:max-w-none">
+                {crumb.name}
+              </span>
             ) : (
               <Link
                 href={crumb.href}
-                className="text-muted-foreground hover:text-foreground transition-colors"
+                className="text-muted-foreground hover:text-foreground transition-colors truncate max-w-[120px] sm:max-w-none"
               >
                 {crumb.name}
               </Link>

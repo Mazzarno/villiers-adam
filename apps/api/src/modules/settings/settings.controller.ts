@@ -12,8 +12,16 @@ export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
 
   @Get('public')
-  getPublic() {
-    return this.settingsService.get();
+  async getPublic() {
+    const settings = await this.settingsService.get();
+    return {
+      siteName: settings.siteName,
+      branding: settings.branding,
+      accessibility: settings.accessibility,
+      contactEmail: settings.contactEmail,
+      contactPhone: settings.contactPhone,
+      address: settings.address,
+    };
   }
 
   @UseGuards(JwtAuthGuard, PermissionGuard)

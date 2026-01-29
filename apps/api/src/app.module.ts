@@ -26,6 +26,7 @@ import { PrivacyModule } from './modules/privacy/privacy.module';
 import { CouncilModule } from './modules/council/council.module';
 import { MunicipalServicesModule } from './modules/municipal-services/municipal-services.module';
 import { TransportsModule } from './modules/transports/transports.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -76,6 +77,7 @@ import { TransportsModule } from './modules/transports/transports.module';
     CouncilModule,
     MunicipalServicesModule,
     TransportsModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

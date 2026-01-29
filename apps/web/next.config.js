@@ -2,7 +2,8 @@
 const ContentSecurityPolicy = `default-src 'self';
   script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.hcaptcha.com https://hcaptcha.com;
   style-src 'self' 'unsafe-inline';
-  img-src 'self' data: blob: https:;
+  img-src 'self' data: blob: https: http://localhost:*;
+  media-src 'self' https: http://localhost:*;
   font-src 'self' data:;
   connect-src 'self' https://hcaptcha.com https://*.hcaptcha.com https://*.villiers-adam.fr http://localhost:* ws://localhost:*;
   frame-src https://hcaptcha.com https://*.hcaptcha.com;

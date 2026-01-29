@@ -38,11 +38,19 @@ export class ArticlesService {
       where.isFlash = params.isFlash;
     }
 
-    return this.prisma.article.findMany({
+    const articles = await this.prisma.article.findMany({
       where,
       orderBy: { publishedAt: 'desc' },
       include: { coverMedia: true, documentMedia: true },
     });
+
+    // Log pour debug
+    console.log(`[ArticlesService] listPublished: found ${articles.length} articles`, {
+      filters: params,
+      now: new Date().toISOString(),
+    });
+
+    return articles;
   }
 
   async listAll(params: {

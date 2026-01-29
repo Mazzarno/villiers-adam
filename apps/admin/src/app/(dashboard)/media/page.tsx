@@ -211,22 +211,22 @@ function MediaLibraryContent() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Médias</h1>
           <p className="text-muted-foreground">
             Gérez vos images, vidéos et documents
           </p>
         </div>
-        <Button onClick={() => setShowUploadDialog(true)}>
+        <Button onClick={() => setShowUploadDialog(true)} className="w-full sm:w-auto">
           <Upload className="mr-2 h-4 w-4" />
           Téléverser
         </Button>
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative w-full sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Rechercher un fichier..."
@@ -236,7 +236,7 @@ function MediaLibraryContent() {
           />
         </div>
         <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Type de fichier" />
           </SelectTrigger>
           <SelectContent>
@@ -246,7 +246,7 @@ function MediaLibraryContent() {
             <SelectItem value="application/pdf">PDF</SelectItem>
           </SelectContent>
         </Select>
-        <div className="flex items-center gap-1 border rounded-md">
+        <div className="flex items-center gap-1 border rounded-md self-start sm:self-auto">
           <Button
             variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
             size="icon"
@@ -458,7 +458,7 @@ function MediaLibraryContent() {
                   </div>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
                 <div>
                   <Label className="text-muted-foreground">Type</Label>
                   <p>{selectedMedia.mimeType}</p>

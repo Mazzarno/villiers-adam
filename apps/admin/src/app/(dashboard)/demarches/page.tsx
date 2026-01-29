@@ -170,6 +170,7 @@ export default function DemarchesPage() {
   const columns: ColumnDef<Procedure>[] = [
     {
       accessorKey: 'title',
+      meta: { mobile: 'primary', label: 'Titre' },
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -192,6 +193,7 @@ export default function DemarchesPage() {
     },
     {
       accessorKey: 'status',
+      meta: { label: 'Statut' },
       header: 'Statut',
       cell: ({ row }) => <StatusBadge status={row.original.status} />,
       filterFn: (row, id, value) => {
@@ -200,6 +202,7 @@ export default function DemarchesPage() {
     },
     {
       accessorKey: 'externalUrl',
+      meta: { label: 'Lien externe' },
       header: 'Lien externe',
       cell: ({ row }) =>
         row.original.externalUrl ? (
@@ -218,6 +221,7 @@ export default function DemarchesPage() {
     },
     {
       accessorKey: 'updatedAt',
+      meta: { mobile: 'hidden', label: 'Modifié' },
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -235,6 +239,7 @@ export default function DemarchesPage() {
     },
     {
       id: 'actions',
+      meta: { mobile: 'actions', label: 'Actions' },
       cell: ({ row }) => {
         const item = row.original;
         return (
@@ -295,14 +300,14 @@ export default function DemarchesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Démarches</h1>
           <p className="text-muted-foreground">
             Gérez les démarches administratives et procédures
           </p>
         </div>
-        <Button onClick={handleCreate}>
+        <Button onClick={handleCreate} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           Nouvelle démarche
         </Button>

@@ -292,6 +292,7 @@ export default function AnnuairePage() {
   const columns: ColumnDef<DirectoryEntry>[] = [
     {
       accessorKey: 'name',
+      meta: { mobile: 'primary', label: 'Nom' },
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -314,6 +315,7 @@ export default function AnnuairePage() {
     },
     {
       accessorKey: 'type',
+      meta: { label: 'Type' },
       header: 'Type',
       cell: ({ row }) => (
         <Badge variant={typeColors[row.original.type] || 'default'}>
@@ -326,11 +328,13 @@ export default function AnnuairePage() {
     },
     {
       accessorKey: 'status',
+      meta: { label: 'Statut' },
       header: 'Statut',
       cell: ({ row }) => <StatusBadge status={row.original.status} />,
     },
     {
       accessorKey: 'addressLine1',
+      meta: { mobile: 'hidden', label: 'Contact' },
       header: 'Contact',
       cell: ({ row }) => (
         <div className="text-sm space-y-1">
@@ -351,6 +355,7 @@ export default function AnnuairePage() {
     },
     {
       accessorKey: 'email',
+      meta: { mobile: 'hidden', label: 'En ligne' },
       header: 'En ligne',
       cell: ({ row }) => (
         <div className="text-sm space-y-1">
@@ -378,6 +383,7 @@ export default function AnnuairePage() {
     },
     {
       id: 'actions',
+      meta: { mobile: 'actions', label: 'Actions' },
       cell: ({ row }) => {
         const item = row.original;
         return (
@@ -430,14 +436,14 @@ export default function AnnuairePage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Annuaire</h1>
           <p className="text-muted-foreground">
             Gérez l&apos;annuaire des associations, entreprises et commerces
           </p>
         </div>
-        <Button onClick={handleCreate}>
+        <Button onClick={handleCreate} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           Nouvelle entrée
         </Button>

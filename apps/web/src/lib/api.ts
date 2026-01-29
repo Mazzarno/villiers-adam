@@ -801,6 +801,21 @@ export const api = {
         body: JSON.stringify(data),
       }),
   },
+
+  // Settings
+  settings: {
+    getPublic: () =>
+      fetchAPI<{
+        siteName: string;
+        branding: unknown;
+        accessibility: unknown;
+        contactEmail: string;
+        contactPhone: string;
+        address: unknown;
+      }>('/settings/public', {
+        next: { revalidate: 3600 }, // Cache 1 heure
+      }),
+  },
 };
 
 export default api;

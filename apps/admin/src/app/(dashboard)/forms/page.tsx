@@ -107,6 +107,7 @@ export default function FormsPage() {
   const columns: ColumnDef<FormSubmission>[] = [
     {
       accessorKey: 'type',
+      meta: { label: 'Type' },
       header: 'Type',
       cell: ({ row }) => {
         const Icon = typeIcons[row.original.type] || MessageSquare;
@@ -120,6 +121,7 @@ export default function FormsPage() {
     },
     {
       accessorKey: 'subject',
+      meta: { mobile: 'primary', label: 'Sujet' },
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -140,6 +142,7 @@ export default function FormsPage() {
     },
     {
       accessorKey: 'name',
+      meta: { mobile: 'hidden', label: 'Expéditeur' },
       header: 'Expéditeur',
       cell: ({ row }) => (
         <div>
@@ -152,6 +155,7 @@ export default function FormsPage() {
     },
     {
       accessorKey: 'status',
+      meta: { label: 'Statut' },
       header: 'Statut',
       cell: ({ row }) => (
         <Badge variant={statusColors[row.original.status] || 'default'}>
@@ -164,6 +168,7 @@ export default function FormsPage() {
     },
     {
       accessorKey: 'createdAt',
+      meta: { mobile: 'hidden', label: 'Reçu' },
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -181,6 +186,7 @@ export default function FormsPage() {
     },
     {
       id: 'actions',
+      meta: { mobile: 'actions', label: 'Actions' },
       cell: ({ row }) => {
         const item = row.original;
         return (
@@ -224,7 +230,7 @@ export default function FormsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Formulaires</h1>
           <p className="text-muted-foreground">
@@ -260,7 +266,7 @@ export default function FormsPage() {
           </DialogHeader>
           {selectedSubmission && (
             <div className="space-y-4 py-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-sm text-muted-foreground">Statut</span>
                 <Select
                   value={selectedSubmission.status}

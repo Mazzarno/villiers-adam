@@ -114,6 +114,7 @@ export default function ArticlesListPage() {
   const columns: ColumnDef<Article>[] = [
     {
       accessorKey: 'title',
+      meta: { mobile: 'primary', label: 'Titre' },
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -144,6 +145,7 @@ export default function ArticlesListPage() {
     },
     {
       accessorKey: 'type',
+      meta: { label: 'Type' },
       header: 'Type',
       cell: ({ row }) => (
         <div className="space-y-1">
@@ -160,6 +162,7 @@ export default function ArticlesListPage() {
     },
     {
       accessorKey: 'status',
+      meta: { label: 'Statut' },
       header: 'Statut',
       cell: ({ row }) => <StatusBadge status={row.original.status} />,
       filterFn: (row, id, value) => {
@@ -168,6 +171,7 @@ export default function ArticlesListPage() {
     },
     {
       accessorKey: 'publishedAt',
+      meta: { mobile: 'hidden', label: 'Publication' },
       header: 'Publication',
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
@@ -179,6 +183,7 @@ export default function ArticlesListPage() {
     },
     {
       accessorKey: 'updatedAt',
+      meta: { label: 'Modifié' },
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -196,6 +201,7 @@ export default function ArticlesListPage() {
     },
     {
       id: 'actions',
+      meta: { mobile: 'actions', label: 'Actions' },
       cell: ({ row }) => {
         const article = row.original;
         return (
@@ -250,14 +256,14 @@ export default function ArticlesListPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Actualités</h1>
           <p className="text-muted-foreground">
             Gérez les actualités, publications et brèves de votre mairie
           </p>
         </div>
-        <Button asChild>
+        <Button asChild className="w-full sm:w-auto">
           <Link href="/content/articles/new">
             <Plus className="mr-2 h-4 w-4" />
             Nouvelle actualité
@@ -266,7 +272,7 @@ export default function ArticlesListPage() {
       </div>
 
       {/* Type filter */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center">
         <span className="text-sm text-muted-foreground">Type :</span>
         <Select
           value={typeFilter}
@@ -277,7 +283,7 @@ export default function ArticlesListPage() {
             }
           }}
         >
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-full sm:w-[180px]">
             <SelectValue placeholder="Tous les types" />
           </SelectTrigger>
           <SelectContent>
@@ -289,7 +295,7 @@ export default function ArticlesListPage() {
         </Select>
         {typeFilter === 'PUBLICATION' && (
           <Select value={publicationFilter} onValueChange={setPublicationFilter}>
-            <SelectTrigger className="w-[200px]">
+            <SelectTrigger className="w-full sm:w-[200px]">
               <SelectValue placeholder="Toutes les publications" />
             </SelectTrigger>
             <SelectContent>

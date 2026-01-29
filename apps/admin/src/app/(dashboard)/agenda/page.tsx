@@ -211,6 +211,7 @@ export default function AgendaPage() {
   const columns: ColumnDef<AgendaItem>[] = [
     {
       accessorKey: 'title',
+      meta: { mobile: 'primary', label: 'Titre' },
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -233,6 +234,7 @@ export default function AgendaPage() {
     },
     {
       accessorKey: 'type',
+      meta: { label: 'Type' },
       header: 'Type',
       cell: ({ row }) => (
         <Badge variant={typeColors[row.original.type] || 'default'}>
@@ -245,11 +247,13 @@ export default function AgendaPage() {
     },
     {
       accessorKey: 'status',
+      meta: { label: 'Statut' },
       header: 'Statut',
       cell: ({ row }) => <StatusBadge status={row.original.status} />,
     },
     {
       accessorKey: 'startsAt',
+      meta: { label: 'Date' },
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -270,6 +274,7 @@ export default function AgendaPage() {
     },
     {
       accessorKey: 'isRecurring',
+      meta: { mobile: 'hidden', label: 'Récurrence' },
       header: 'Récurrence',
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
@@ -279,6 +284,7 @@ export default function AgendaPage() {
     },
     {
       id: 'actions',
+      meta: { mobile: 'actions', label: 'Actions' },
       cell: ({ row }) => {
         const item = row.original;
         return (
@@ -331,14 +337,14 @@ export default function AgendaPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Agenda</h1>
           <p className="text-muted-foreground">
             Gérez les événements de l&apos;agenda communal
           </p>
         </div>
-        <Button onClick={handleCreate}>
+        <Button onClick={handleCreate} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           Nouvel événement
         </Button>

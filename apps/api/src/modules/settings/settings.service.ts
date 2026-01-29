@@ -27,7 +27,7 @@ export class SettingsService {
         },
         contactEmail: mairieConfig.mairie.contact.email,
         contactPhone: mairieConfig.mairie.contact.telephone,
-        address: mairieConfig.mairie.adresse,
+        address: mairieConfig.mairie.adresse as Prisma.InputJsonValue,
       },
     });
   }
@@ -43,7 +43,7 @@ export class SettingsService {
         accessibility: (input.accessibility ?? existing.accessibility) as Prisma.InputJsonValue,
         contactEmail: input.contactEmail ?? existing.contactEmail,
         contactPhone: input.contactPhone ?? existing.contactPhone,
-        address: input.address ?? existing.address,
+        address: (input.address ?? existing.address) as Prisma.InputJsonValue,
       },
     });
   }

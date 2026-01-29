@@ -1,5 +1,3 @@
-// Configuration statique de la mairie basée sur mairie.config.json
-// Ces valeurs sont utilisées comme fallback si l'API n'est pas disponible
 
 export const mairieConfig = {
   commune: {
@@ -11,8 +9,8 @@ export const mairieConfig = {
     population: 975,
   },
   contact: {
-    adresse: '1 Place de la Mairie, 95840 Villiers-Adam',
-    telephone: '01 34 08 00 00',
+    adresse: '2 Rue des Séquoias, 95840 Villiers-Adam',
+    telephone: '01 34 69 28 17',
     email: 'mairie@villiers-adam.fr',
     website: 'https://villiers-adam.fr',
   },

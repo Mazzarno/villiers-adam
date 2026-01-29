@@ -184,6 +184,7 @@ export default function ConseilPage() {
   const columns: ColumnDef<CouncilMember>[] = [
     {
       accessorKey: 'name',
+      meta: { mobile: 'primary', label: 'Nom' },
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -204,6 +205,7 @@ export default function ConseilPage() {
     },
     {
       accessorKey: 'role',
+      meta: { label: 'Rôle' },
       header: 'Rôle',
       cell: ({ row }) => (
         <Badge variant="secondary">{roleLabels[row.original.role]}</Badge>
@@ -211,11 +213,13 @@ export default function ConseilPage() {
     },
     {
       accessorKey: 'status',
+      meta: { label: 'Statut' },
       header: 'Statut',
       cell: ({ row }) => <StatusBadge status={row.original.status} />,
     },
     {
       accessorKey: 'updatedAt',
+      meta: { mobile: 'hidden', label: 'Màj' },
       header: 'Màj',
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
@@ -225,6 +229,7 @@ export default function ConseilPage() {
     },
     {
       id: 'actions',
+      meta: { mobile: 'actions', label: 'Actions' },
       cell: ({ row }) => {
         const member = row.original;
         return (
@@ -271,12 +276,12 @@ export default function ConseilPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Conseil municipal</h1>
           <p className="text-muted-foreground">Gérez les membres du conseil et le maire.</p>
         </div>
-        <Button onClick={handleCreate}>
+        <Button onClick={handleCreate} className="w-full sm:w-auto">
           <Plus className="mr-2 h-4 w-4" />
           Ajouter
         </Button>

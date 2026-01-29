@@ -4,6 +4,11 @@
   "version": "0.1.0",
   "packageManager": "pnpm@8.15.5",
   "scripts": {
+    "dev:env": "node -e \"const fs=require('fs'); if (!fs.existsSync('.env') && fs.existsSync('.env.example')) { fs.copyFileSync('.env.example', '.env'); console.log('Created .env from .env.example'); }\"",
+    "dev:infra": "docker compose --env-file .env -f docker/docker-compose.dev.yml up -d",
+    "db:migrate": "dotenv -e .env -- pnpm -F @villiers-adam/api exec prisma migrate deploy",
+    "db:seed": "dotenv -e .env -- pnpm -F @villiers-adam/api exec prisma db seed",
+    "dev:setup": "pnpm dev:env && pnpm dev:infra && pnpm db:migrate && pnpm db:seed && pnpm dev",
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
@@ -14,6 +19,7 @@
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "dotenv-cli": "^7.4.2",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.0",
     "eslint-config-prettier": "^9.1.0",

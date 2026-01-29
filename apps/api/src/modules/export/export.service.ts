@@ -5,7 +5,7 @@ import { PassThrough } from 'node:stream';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { MinioService } from '../media/minio.service';
 
-type ExportEntity = 'pages' | 'articles' | 'events' | 'agenda' | 'annuaire' | 'demarches' | 'reservations' | 'forms';
+type ExportEntity = 'articles' | 'events' | 'annuaire' | 'demarches' | 'council' | 'services' | 'transports';
 
 @Injectable()
 export class ExportService {
@@ -40,17 +40,11 @@ export class ExportService {
     let data: Record<string, unknown>[];
 
     switch (entity) {
-      case 'pages':
-        data = await this.prisma.page.findMany();
-        break;
       case 'articles':
         data = await this.prisma.article.findMany();
         break;
       case 'events':
         data = await this.prisma.event.findMany();
-        break;
-      case 'agenda':
-        data = await this.prisma.agendaItem.findMany();
         break;
       case 'annuaire':
         data = await this.prisma.directoryEntry.findMany();
@@ -58,11 +52,14 @@ export class ExportService {
       case 'demarches':
         data = await this.prisma.procedure.findMany();
         break;
-      case 'reservations':
-        data = await this.prisma.reservation.findMany({ include: { room: true } });
+      case 'council':
+        data = await this.prisma.councilMember.findMany();
         break;
-      case 'forms':
-        data = await this.prisma.formSubmission.findMany({ where: { isBot: false } });
+      case 'services':
+        data = await this.prisma.municipalService.findMany();
+        break;
+      case 'transports':
+        data = await this.prisma.transportInfo.findMany();
         break;
       default:
         throw new BadRequestException(`Unknown entity: ${entity}`);
@@ -78,19 +75,20 @@ export class ExportService {
     archive.pipe(stream);
 
     const entities: ExportEntity[] = [
-      'pages',
       'articles',
       'events',
-      'agenda',
       'annuaire',
       'demarches',
-      'reservations',
-      'forms',
+      'council',
+      'services',
+      'transports',
     ];
 
     for (const entity of entities) {
       const csv = await this.exportToCsv(entity);
-      archive.append(csv, { name: `${entity}.csv` });
+      if (csv) {
+        archive.append(csv, { name: `${entity}.csv` });
+      }
     }
 
     await archive.finalize();
@@ -98,37 +96,135 @@ export class ExportService {
     return stream;
   }
 
-  async exportAll() {
+  async exportFull(userId: string) {
     const archive = archiver('zip', { zlib: { level: 9 } });
     const stream = new PassThrough();
 
     archive.pipe(stream);
 
-    const [pages, articles, events, agenda, directory, procedures, media] = await Promise.all([
-      this.prisma.page.findMany(),
+    // Fetch all data
+    const [
+      articles,
+      events,
+      directory,
+      procedures,
+      councilMembers,
+      municipalServices,
+      transportInfo,
+      media,
+      settings,
+    ] = await Promise.all([
       this.prisma.article.findMany(),
       this.prisma.event.findMany(),
-      this.prisma.agendaItem.findMany(),
       this.prisma.directoryEntry.findMany(),
       this.prisma.procedure.findMany(),
+      this.prisma.councilMember.findMany(),
+      this.prisma.municipalService.findMany(),
+      this.prisma.transportInfo.findMany(),
       this.prisma.media.findMany(),
+      this.prisma.settings.findUnique({ where: { id: 'default' } }),
     ]);
 
-    archive.append(JSON.stringify(pages, null, 2), { name: 'pages.json' });
-    archive.append(JSON.stringify(articles, null, 2), { name: 'articles.json' });
-    archive.append(JSON.stringify(events, null, 2), { name: 'events.json' });
-    archive.append(JSON.stringify(agenda, null, 2), { name: 'agenda.json' });
-    archive.append(JSON.stringify(directory, null, 2), { name: 'annuaire.json' });
-    archive.append(JSON.stringify(procedures, null, 2), { name: 'demarches.json' });
-    archive.append(JSON.stringify(media, null, 2), { name: 'media.json' });
+    // Create export data structure
+    const exportData = {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      data: {
+        articles,
+        events,
+        directoryEntries: directory,
+        procedures,
+        councilMembers,
+        municipalServices,
+        transportInfo,
+        media,
+        settings,
+      },
+    };
 
+    // Add data.json
+    archive.append(JSON.stringify(exportData, null, 2), { name: 'data.json' });
+
+    // Add metadata
+    const metadata = {
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      exportedBy: userId,
+      counts: {
+        articles: articles.length,
+        events: events.length,
+        directoryEntries: directory.length,
+        procedures: procedures.length,
+        councilMembers: councilMembers.length,
+        municipalServices: municipalServices.length,
+        transportInfo: transportInfo.length,
+        media: media.length,
+      },
+    };
+    archive.append(JSON.stringify(metadata, null, 2), { name: 'metadata.json' });
+
+    // Add media files
     for (const item of media) {
-      const objectStream = await this.minio.getObjectStream(item.storageKey);
-      archive.append(objectStream, { name: `media/${item.storageKey}` });
+      try {
+        const objectStream = await this.minio.getObjectStream(item.storageKey);
+        archive.append(objectStream, { name: `media/${item.storageKey}` });
+      } catch (error) {
+        console.error(`Failed to export media ${item.storageKey}:`, error);
+      }
     }
 
     await archive.finalize();
 
-    return stream;
+    // Calculate size
+    let size = 0;
+    stream.on('data', (chunk) => {
+      size += chunk.length;
+    });
+
+    return { stream, size };
+  }
+
+  async saveArchive(filename: string, storageKey: string, size: number, userId: string) {
+    return this.prisma.exportArchive.create({
+      data: {
+        filename,
+        storageKey,
+        size,
+        createdById: userId,
+      },
+    });
+  }
+
+  async listArchives(userId?: string) {
+    return this.prisma.exportArchive.findMany({
+      where: userId ? { createdById: userId } : undefined,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        createdBy: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+      },
+    });
+  }
+
+  async deleteArchive(id: string) {
+    const archive = await this.prisma.exportArchive.findUnique({ where: { id } });
+    if (!archive) {
+      throw new BadRequestException('Archive not found');
+    }
+
+    // Delete from MinIO
+    try {
+      await this.minio.deleteObject(archive.storageKey);
+    } catch (error) {
+      console.error(`Failed to delete archive from MinIO:`, error);
+    }
+
+    // Delete from database
+    return this.prisma.exportArchive.delete({ where: { id } });
   }
 }

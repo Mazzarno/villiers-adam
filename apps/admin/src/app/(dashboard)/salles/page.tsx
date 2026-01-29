@@ -61,14 +61,14 @@ export default function SallesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Gestion des salles</h1>
           <p className="text-muted-foreground">
             Gérez les salles communales disponibles à la réservation
           </p>
         </div>
-        <Button onClick={() => router.push('/salles/new')}>
+        <Button onClick={() => router.push('/salles/new')} className="w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
           Nouvelle salle
         </Button>

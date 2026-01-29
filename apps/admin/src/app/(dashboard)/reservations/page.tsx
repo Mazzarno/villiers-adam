@@ -79,6 +79,7 @@ export default function ReservationsPage() {
   const columns: ColumnDef<Reservation>[] = [
     {
       accessorKey: 'room',
+      meta: { label: 'Salle' },
       header: 'Salle',
       cell: ({ row }) => (
         <div>
@@ -88,6 +89,7 @@ export default function ReservationsPage() {
     },
     {
       accessorKey: 'requesterName',
+      meta: { mobile: 'primary', label: 'Demandeur' },
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -106,6 +108,7 @@ export default function ReservationsPage() {
     },
     {
       accessorKey: 'startsAt',
+      meta: { label: 'Date' },
       header: ({ column }) => (
         <Button
           variant="ghost"
@@ -126,6 +129,7 @@ export default function ReservationsPage() {
     },
     {
       accessorKey: 'status',
+      meta: { label: 'Statut' },
       header: 'Statut',
       cell: ({ row }) => (
         <Badge variant={statusColors[row.original.status] || 'default'}>
@@ -138,6 +142,7 @@ export default function ReservationsPage() {
     },
     {
       accessorKey: 'createdAt',
+      meta: { mobile: 'hidden', label: 'Demande' },
       header: 'Demande',
       cell: ({ row }) => (
         <span className="text-sm text-muted-foreground">
@@ -147,6 +152,7 @@ export default function ReservationsPage() {
     },
     {
       id: 'actions',
+      meta: { mobile: 'actions', label: 'Actions' },
       cell: ({ row }) => {
         const item = row.original;
         return (
@@ -194,7 +200,7 @@ export default function ReservationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Réservations</h1>
           <p className="text-muted-foreground">
@@ -228,7 +234,7 @@ export default function ReservationsPage() {
           </DialogHeader>
           {selectedReservation && (
             <div className="space-y-4 py-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-sm text-muted-foreground">Statut</span>
                 <Badge variant={statusColors[selectedReservation.status]}>
                   {statusLabels[selectedReservation.status]}
