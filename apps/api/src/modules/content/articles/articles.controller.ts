@@ -49,6 +49,7 @@ export class ArticlesController {
     @Query('search') search?: string,
     @Query('type') type?: ArticleType,
     @Query('publicationType') publicationType?: PublicationType,
+    @Query('isFlash') isFlash?: string,
   ) {
     const parsedStatus =
       status && Object.values(ContentStatus).includes(status)
@@ -60,11 +61,13 @@ export class ArticlesController {
       publicationType && Object.values(PublicationType).includes(publicationType)
         ? publicationType
         : undefined;
+    const parsedIsFlash = isFlash === 'true' ? true : isFlash === 'false' ? false : undefined;
     return this.articlesService.listAll({
       status: parsedStatus,
       search,
       type: parsedType,
       publicationType: parsedPublicationType,
+      isFlash: parsedIsFlash,
     });
   }
 

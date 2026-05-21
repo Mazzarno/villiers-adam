@@ -1,32 +1,28 @@
-'use client';
-
-import * as React from 'react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ClipboardList, ChevronLeft, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SafeHTML } from '@/components/ui/safe-html';
 import api, { type Procedure } from '@/lib/api';
 
-export default function DemarchesPage() {
-  const [items, setItems] = React.useState<Procedure[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
+export const metadata: Metadata = {
+  title: 'Démarches Administratives',
+  description: 'Retrouvez les démarches administratives disponibles à Villiers-Adam et les documents nécessaires.',
+};
 
-  React.useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await api.demarches.list();
-        setItems(data);
-      } catch (error) {
-        console.error('Failed to load demarches:', error);
-        setItems([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+export default async function DemarchesPage() {
+  let items: Procedure[] = [];
+  let hasError = false;
 
-    load();
-  }, []);
+  try {
+    items = await api.demarches.list();
+  } catch (error) {
+    console.error('Failed to load demarches:', error);
+    hasError = true;
+  }
+  const hasLiveData = items.length > 0;
 
   return (
     <div className="min-h-screen">
@@ -66,17 +62,19 @@ export default function DemarchesPage() {
 
       <section className="py-12 lg:py-16">
         <div className="container">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          {hasError && (
+            <div className="mb-8 p-4 rounded-organic border border-villiers-gold/25 bg-villiers-gold/5 text-sm text-muted-foreground">
+              Les informations sont temporairement indisponibles.
             </div>
-          ) : items.length === 0 ? (
-            <div className="text-center text-muted-foreground">
-              Aucune démarche publiée pour le moment.
+          )}
+          {!hasError && !hasLiveData && (
+            <div className="mb-8 p-4 rounded-organic border border-villiers-gold/25 bg-villiers-gold/5 text-sm text-muted-foreground">
+              Aucune donnee publiee pour le moment.
             </div>
-          ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {items.map((item) => (
+          )}
+          {!hasError && hasLiveData && (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {items.map((item) => (
                 <Card key={item.id} className="group hover:shadow-lg transition-all">
                   {item.coverImage && (
                     <div className="relative aspect-[16/9] overflow-hidden rounded-t-lg">
@@ -96,15 +94,16 @@ export default function DemarchesPage() {
                       <p className="text-sm text-muted-foreground line-clamp-3">{item.summary}</p>
                     )}
                     {item.content && (
-                      <div
+                      <SafeHTML
+                        html={item.content}
                         className="prose prose-sm max-w-none text-muted-foreground"
-                        dangerouslySetInnerHTML={{ __html: item.content }}
                       />
                     )}
                     {item.externalUrl && (
                       <Link
                         href={item.externalUrl}
                         target="_blank"
+                        rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 text-primary hover:underline"
                       >
                         <ExternalLink className="h-4 w-4" />
@@ -113,8 +112,8 @@ export default function DemarchesPage() {
                     )}
                   </CardContent>
                 </Card>
-              ))}
-            </div>
+            ))}
+          </div>
           )}
         </div>
       </section>

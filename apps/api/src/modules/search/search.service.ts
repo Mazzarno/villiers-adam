@@ -4,7 +4,7 @@ import { MeiliSearch } from 'meilisearch';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
-type IndexName = 'pages' | 'articles' | 'events' | 'directory' | 'procedures';
+type IndexName = 'articles' | 'events' | 'directory' | 'procedures';
 
 @Injectable()
 export class SearchService {
@@ -24,7 +24,6 @@ export class SearchService {
     if (!this.client) {
       return {
         articles: [],
-        pages: [],
         events: [],
         directory: [],
         procedures: [],
@@ -38,7 +37,6 @@ export class SearchService {
 
     const rawResults = await this.client.multiSearch({
       queries: [
-        { indexUid: 'pages', q: query, limit },
         { indexUid: 'articles', q: query, limit },
         { indexUid: 'events', q: query, limit },
         { indexUid: 'directory', q: query, limit },
@@ -46,20 +44,25 @@ export class SearchService {
       ],
     });
 
-    // Mapper au format attendu par le client
-    const articles = rawResults.results.find((r) => r.indexUid === 'articles')?.hits || [];
-    const pages = rawResults.results.find((r) => r.indexUid === 'pages')?.hits || [];
-    const events = rawResults.results.find((r) => r.indexUid === 'events')?.hits || [];
-    const directory = rawResults.results.find((r) => r.indexUid === 'directory')?.hits || [];
-    const procedures = rawResults.results.find((r) => r.indexUid === 'procedures')?.hits || [];
+    const articles = (rawResults.results.find((r) => r.indexUid === 'articles')?.hits || []).map((hit) =>
+      this.normalizeArticleHit(hit as Record<string, unknown>),
+    );
+    const events = (rawResults.results.find((r) => r.indexUid === 'events')?.hits || []).map((hit) =>
+      this.normalizeEventHit(hit as Record<string, unknown>),
+    );
+    const directory = (rawResults.results.find((r) => r.indexUid === 'directory')?.hits || []).map((hit) =>
+      this.normalizeDirectoryHit(hit as Record<string, unknown>),
+    );
+    const procedures = (rawResults.results.find((r) => r.indexUid === 'procedures')?.hits || []).map((hit) =>
+      this.normalizeProcedureHit(hit as Record<string, unknown>),
+    );
 
     return {
       articles,
-      pages,
       events,
       directory,
       procedures,
-      total: articles.length + pages.length + events.length + directory.length + procedures.length,
+      total: articles.length + events.length + directory.length + procedures.length,
     };
   }
 
@@ -71,10 +74,7 @@ export class SearchService {
 
     await this.ensureIndexes();
 
-    const [pages, articles, events, directory, procedures] = await Promise.all([
-      this.prisma.page.findMany({
-        where: { status: 'PUBLISHED', publishedAt: { lte: new Date() } },
-      }),
+    const [articles, events, directory, procedures] = await Promise.all([
       this.prisma.article.findMany({
         where: { status: 'PUBLISHED', publishedAt: { lte: new Date() } },
       }),
@@ -90,7 +90,6 @@ export class SearchService {
     ]);
 
     await Promise.all([
-      this.client.index('pages').addDocuments(pages.map((page) => this.mapPage(page))),
       this.client.index('articles').addDocuments(articles.map((article) => this.mapArticle(article))),
       this.client.index('events').addDocuments(events.map((event) => this.mapEvent(event))),
       this.client.index('directory').addDocuments(directory.map((entry) => this.mapDirectory(entry))),
@@ -98,11 +97,6 @@ export class SearchService {
         .index('procedures')
         .addDocuments(procedures.map((procedure) => this.mapProcedure(procedure))),
     ]);
-  }
-
-  async upsertPage(page: { id: string }) {
-    return this.upsert('pages', await this.prisma.page.findUnique({ where: { id: page.id } }),
-      (value) => this.mapPage(value));
   }
 
   async upsertArticle(article: { id: string }) {
@@ -158,7 +152,6 @@ export class SearchService {
     }
 
     await Promise.all([
-      this.ensureIndex('pages'),
       this.ensureIndex('articles'),
       this.ensureIndex('events'),
       this.ensureIndex('directory'),
@@ -172,69 +165,160 @@ export class SearchService {
     }
     const idx = this.client.index(index);
     await idx.updateSettings({
-      searchableAttributes: ['title', 'content', 'summary', 'name'],
+      searchableAttributes: ['title', 'name', 'content', 'summary', 'excerpt', 'description'],
       filterableAttributes: ['type', 'status', 'publishedAt'],
-      sortableAttributes: ['publishedAt', 'title', 'name'],
+      sortableAttributes: ['publishedAt', 'createdAt', 'title', 'name'],
     });
   }
 
-  private mapPage(page: { id: string; title: string; summary: string | null; content: Prisma.JsonValue; slug: string; publishedAt: Date | null }) {
-    return {
-      id: page.id,
-      title: page.title,
-      summary: page.summary,
-      content: this.extractText(page.content),
-      slug: page.slug,
-      publishedAt: page.publishedAt?.toISOString() ?? null,
-      type: 'page',
-    };
-  }
-
-  private mapArticle(article: { id: string; title: string; summary: string | null; content: Prisma.JsonValue; slug: string; publishedAt: Date | null }) {
+  private mapArticle(article: {
+    id: string;
+    title: string;
+    summary: string | null;
+    content: Prisma.JsonValue;
+    slug: string;
+    publishedAt: Date | null;
+    createdAt: Date;
+  }) {
     return {
       id: article.id,
       title: article.title,
-      summary: article.summary,
+      excerpt: article.summary,
       content: this.extractText(article.content),
       slug: article.slug,
       publishedAt: article.publishedAt?.toISOString() ?? null,
+      createdAt: article.createdAt.toISOString(),
       type: 'article',
     };
   }
 
-  private mapEvent(event: { id: string; title: string; summary: string | null; content: Prisma.JsonValue; slug: string; publishedAt: Date | null }) {
+  private mapEvent(event: {
+    id: string;
+    title: string;
+    summary: string | null;
+    content: Prisma.JsonValue;
+    slug: string;
+    publishedAt: Date | null;
+    createdAt: Date;
+    startsAt: Date;
+  }) {
     return {
       id: event.id,
       title: event.title,
-      summary: event.summary,
+      description: event.summary,
       content: this.extractText(event.content),
       slug: event.slug,
       publishedAt: event.publishedAt?.toISOString() ?? null,
+      createdAt: event.createdAt.toISOString(),
+      startDate: event.startsAt.toISOString(),
       type: 'event',
     };
   }
 
-  private mapDirectory(entry: { id: string; name: string; description: string | null; slug: string; publishedAt: Date | null }) {
+  private mapDirectory(entry: {
+    id: string;
+    name: string;
+    description: string | null;
+    slug: string;
+    publishedAt: Date | null;
+    createdAt: Date;
+    type: string;
+  }) {
     return {
       id: entry.id,
+      name: entry.name,
       title: entry.name,
-      summary: entry.description,
+      description: entry.description,
       slug: entry.slug,
       publishedAt: entry.publishedAt?.toISOString() ?? null,
+      createdAt: entry.createdAt.toISOString(),
+      category: entry.type,
       type: 'directory',
     };
   }
 
-  private mapProcedure(procedure: { id: string; title: string; summary: string | null; content: Prisma.JsonValue; slug: string; publishedAt: Date | null }) {
+  private mapProcedure(procedure: {
+    id: string;
+    title: string;
+    summary: string | null;
+    content: Prisma.JsonValue;
+    slug: string;
+    publishedAt: Date | null;
+    createdAt: Date;
+  }) {
     return {
       id: procedure.id,
       title: procedure.title,
-      summary: procedure.summary,
+      excerpt: procedure.summary,
       content: this.extractText(procedure.content),
       slug: procedure.slug,
       publishedAt: procedure.publishedAt?.toISOString() ?? null,
+      createdAt: procedure.createdAt.toISOString(),
       type: 'procedure',
     };
+  }
+
+  private normalizeArticleHit(hit: Record<string, unknown>) {
+    const publishedAt = this.getString(hit, 'publishedAt');
+    return {
+      id: this.getString(hit, 'id') ?? '',
+      type: 'article',
+      title: this.getString(hit, 'title') ?? '',
+      slug: this.getString(hit, 'slug') ?? '',
+      excerpt: this.getString(hit, 'excerpt') ?? this.getString(hit, 'summary'),
+      publishedAt,
+      createdAt: this.getString(hit, 'createdAt') ?? publishedAt,
+    };
+  }
+
+  private normalizeEventHit(hit: Record<string, unknown>) {
+    const publishedAt = this.getString(hit, 'publishedAt');
+    return {
+      id: this.getString(hit, 'id') ?? '',
+      type: 'event',
+      title: this.getString(hit, 'title') ?? '',
+      slug: this.getString(hit, 'slug') ?? '',
+      description: this.getString(hit, 'description') ?? this.getString(hit, 'summary'),
+      startDate:
+        this.getString(hit, 'startDate') ??
+        this.getString(hit, 'startsAt') ??
+        this.getString(hit, 'createdAt') ??
+        publishedAt,
+      publishedAt,
+      createdAt: this.getString(hit, 'createdAt') ?? publishedAt,
+    };
+  }
+
+  private normalizeDirectoryHit(hit: Record<string, unknown>) {
+    const publishedAt = this.getString(hit, 'publishedAt');
+    return {
+      id: this.getString(hit, 'id') ?? '',
+      type: 'directory',
+      name: this.getString(hit, 'name') ?? this.getString(hit, 'title') ?? '',
+      slug: this.getString(hit, 'slug') ?? '',
+      description: this.getString(hit, 'description') ?? this.getString(hit, 'summary'),
+      category: this.getString(hit, 'category') ?? this.getString(hit, 'type'),
+      publishedAt,
+      createdAt: this.getString(hit, 'createdAt') ?? publishedAt,
+    };
+  }
+
+  private normalizeProcedureHit(hit: Record<string, unknown>) {
+    const publishedAt = this.getString(hit, 'publishedAt');
+    return {
+      id: this.getString(hit, 'id') ?? '',
+      type: 'procedure',
+      title: this.getString(hit, 'title') ?? '',
+      slug: this.getString(hit, 'slug') ?? '',
+      excerpt: this.getString(hit, 'excerpt') ?? this.getString(hit, 'summary'),
+      publishedAt,
+      createdAt: this.getString(hit, 'createdAt') ?? publishedAt,
+    };
+  }
+
+  private getString(record: Record<string, unknown>, key: string): string | undefined {
+    const value = record[key];
+    return typeof value === 'string' ? value : undefined;
   }
 
   private extractText(value: Prisma.JsonValue) {

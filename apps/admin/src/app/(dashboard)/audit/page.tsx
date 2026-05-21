@@ -8,6 +8,7 @@ import {
   Loader2,
   ChevronDown,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -23,10 +24,10 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { audit, type AuditLog } from '@/lib/api';
-import { formatDateTime, getInitials } from '@/lib/utils';
+import { cn, formatDateTime, getInitials } from '@/lib/utils';
 
 const actionLabels: Record<string, { label: string; color: string }> = {
   CREATE: { label: 'Création', color: 'bg-green-500/10 text-green-700' },
@@ -43,6 +44,11 @@ const entityLabels: Record<string, string> = {
   Article: 'Actualité',
   Event: 'Événement',
   Media: 'Média',
+  DirectoryEntry: 'Annuaire',
+  Procedure: 'Démarche',
+  CouncilMember: 'Conseil municipal',
+  MunicipalService: 'Service municipal',
+  TransportInfo: 'Transport',
   User: 'Utilisateur',
   Settings: 'Paramètres',
 };
@@ -61,22 +67,19 @@ const item = {
 };
 
 export default function AuditPage() {
+  const router = useRouter();
   const [logs, setLogs] = React.useState<AuditLog[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState('');
   const [filterAction, setFilterAction] = React.useState<string>('all');
   const [filterEntity, setFilterEntity] = React.useState<string>('all');
 
-  React.useEffect(() => {
-    loadLogs();
-  }, [filterAction, filterEntity]);
-
-  const loadLogs = async () => {
+  const loadLogs = React.useCallback(async () => {
     try {
       setIsLoading(true);
       const params: Record<string, string> = {};
       if (filterAction !== 'all') params.action = filterAction;
-      if (filterEntity !== 'all') params.entityType = filterEntity;
+      if (filterEntity !== 'all') params.entity = filterEntity;
       const result = await audit.list(params);
       setLogs(result);
     } catch (error) {
@@ -84,13 +87,19 @@ export default function AuditPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [filterAction, filterEntity]);
+
+  React.useEffect(() => {
+    loadLogs();
+  }, [loadLogs]);
 
   const filteredLogs = React.useMemo(() => {
     if (!searchQuery) return logs;
     return logs.filter(
       (log) =>
-        log.entityId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (log.entityId ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        log.entityTitle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        log.entityType?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         log.user?.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         log.user?.lastName?.toLowerCase().includes(searchQuery.toLowerCase()),
     );
@@ -105,6 +114,33 @@ export default function AuditPage() {
     });
     return groups;
   }, [filteredLogs]);
+
+  const getEntityUrl = (log: AuditLog) => {
+    switch (log.entityType) {
+      case 'Article':
+        return log.entityId ? `/content/articles/${log.entityId}` : undefined;
+      case 'Event':
+        return log.entityId ? `/content/events/${log.entityId}` : undefined;
+      case 'Media':
+        return '/media';
+      case 'DirectoryEntry':
+        return '/annuaire';
+      case 'Procedure':
+        return '/demarches';
+      case 'CouncilMember':
+        return '/mairie/conseil';
+      case 'MunicipalService':
+        return '/mairie/services';
+      case 'TransportInfo':
+        return '/transports';
+      case 'Settings':
+        return '/settings';
+      case 'User':
+        return '/settings';
+      default:
+        return undefined;
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -144,15 +180,21 @@ export default function AuditPage() {
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Type" />
           </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tous les types</SelectItem>
-            <SelectItem value="Page">Pages</SelectItem>
-            <SelectItem value="Article">Actualités</SelectItem>
-            <SelectItem value="Event">Événements</SelectItem>
-            <SelectItem value="Media">Médias</SelectItem>
-            <SelectItem value="User">Utilisateurs</SelectItem>
-          </SelectContent>
-        </Select>
+            <SelectContent>
+              <SelectItem value="all">Tous les types</SelectItem>
+              <SelectItem value="Page">Pages</SelectItem>
+              <SelectItem value="Article">Actualités</SelectItem>
+              <SelectItem value="Event">Événements</SelectItem>
+              <SelectItem value="Media">Médias</SelectItem>
+              <SelectItem value="DirectoryEntry">Annuaire</SelectItem>
+              <SelectItem value="Procedure">Démarches</SelectItem>
+              <SelectItem value="CouncilMember">Conseil municipal</SelectItem>
+              <SelectItem value="MunicipalService">Services municipaux</SelectItem>
+              <SelectItem value="TransportInfo">Transports</SelectItem>
+              <SelectItem value="Settings">Paramètres</SelectItem>
+              <SelectItem value="User">Utilisateurs</SelectItem>
+            </SelectContent>
+          </Select>
       </div>
 
       {/* Timeline */}
@@ -197,14 +239,28 @@ export default function AuditPage() {
                   const userName = log.user
                     ? `${log.user.firstName} ${log.user.lastName}`
                     : 'Système';
+                  const entityLabel = log.entityType
+                    ? entityLabels[log.entityType] || log.entityType
+                    : 'Contenu';
+                  const entityTitle = log.entityTitle || log.entityId || '—';
+                  const entityUrl = getEntityUrl(log);
 
                   return (
                     <motion.div
                       key={log.id}
                       variants={item}
-                      className="flex items-start gap-4 p-4 rounded-lg border bg-card"
+                      className={cn(
+                        'flex items-start gap-4 p-4 rounded-lg border bg-card transition-colors',
+                        entityUrl ? 'cursor-pointer hover:bg-muted/50' : '',
+                      )}
+                      onClick={() => {
+                        if (entityUrl) router.push(entityUrl);
+                      }}
                     >
                       <Avatar className="h-10 w-10">
+                        {log.user?.avatarUrl ? (
+                          <AvatarImage src={log.user.avatarUrl} alt={userName} />
+                        ) : null}
                         <AvatarFallback>
                           {log.user ? getInitials(userName) : 'SY'}
                         </AvatarFallback>
@@ -215,12 +271,10 @@ export default function AuditPage() {
                           <Badge variant="outline" className={actionInfo.color}>
                             {actionInfo.label}
                           </Badge>
-                          <Badge variant="secondary">
-                            {entityLabels[log.entityType] || log.entityType}
-                          </Badge>
+                          <Badge variant="secondary">{entityLabel}</Badge>
                         </div>
                         <p className="text-sm text-muted-foreground mt-1">
-                          ID: {log.entityId}
+                          {entityTitle}
                         </p>
                         {hasChanges && (
                           <Popover>
@@ -229,6 +283,7 @@ export default function AuditPage() {
                                 variant="ghost"
                                 size="sm"
                                 className="mt-2 h-auto p-0 text-primary"
+                                onClick={(event) => event.stopPropagation()}
                               >
                                 Voir les modifications
                                 <ChevronDown className="ml-1 h-4 w-4" />

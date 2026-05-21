@@ -1,7 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { ContentStatus, Prisma } from '@prisma/client';
 import { slugify } from '@villiers-adam/shared';
 
+import { sanitizeHttpUrl } from '../../common/security/url-sanitizer';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { VersionService } from '../audit/version.service';
@@ -20,19 +22,28 @@ export class MunicipalServicesService {
     private readonly versionService: VersionService,
   ) {}
 
+  private sanitizeWebsite<T extends { website: string | null }>(service: T): T {
+    return {
+      ...service,
+      website: sanitizeHttpUrl(service.website),
+    };
+  }
+
   async listPublished(params: { category?: string } = {}) {
+    const now = new Date();
     const where: Prisma.MunicipalServiceWhereInput = {
       status: ContentStatus.PUBLISHED,
-      publishedAt: { lte: new Date() },
+      OR: [{ publishedAt: { lte: now } }, { publishedAt: null }],
     };
     if (params.category) {
       where.category = params.category;
     }
-    return this.prisma.municipalService.findMany({
+    const services = await this.prisma.municipalService.findMany({
       where,
       orderBy: [{ order: 'asc' }, { updatedAt: 'desc' }],
       include: { coverMedia: true },
     });
+    return services.map((service) => this.sanitizeWebsite(service));
   }
 
   async listAll(params: { status?: ContentStatus; search?: string; category?: string }) {
@@ -46,11 +57,12 @@ export class MunicipalServicesService {
     if (params.category) {
       where.category = params.category;
     }
-    return this.prisma.municipalService.findMany({
+    const services = await this.prisma.municipalService.findMany({
       where,
       orderBy: [{ order: 'asc' }, { updatedAt: 'desc' }],
       include: { coverMedia: true },
     });
+    return services.map((service) => this.sanitizeWebsite(service));
   }
 
   async getById(id: string) {
@@ -61,7 +73,7 @@ export class MunicipalServicesService {
     if (!service) {
       throw new NotFoundException('Municipal service not found');
     }
-    return service;
+    return this.sanitizeWebsite(service);
   }
 
   async getBySlug(slug: string) {
@@ -72,7 +84,7 @@ export class MunicipalServicesService {
     if (!service || service.status !== ContentStatus.PUBLISHED) {
       throw new NotFoundException('Municipal service not found');
     }
-    return service;
+    return this.sanitizeWebsite(service);
   }
 
   async create(input: MunicipalServiceCreateInput, actor: AuditContext) {
@@ -90,7 +102,7 @@ export class MunicipalServicesService {
         address: input.address ?? null,
         phone: input.phone ?? null,
         email: input.email ?? null,
-        website: input.website ?? null,
+        website: sanitizeHttpUrl(input.website),
         order: input.order ?? 0,
         status,
         publishedAt,
@@ -111,7 +123,7 @@ export class MunicipalServicesService {
       userAgent: actor.userAgent,
     });
 
-    return service;
+    return this.sanitizeWebsite(service);
   }
 
   async update(id: string, input: MunicipalServiceUpdateInput, actor: AuditContext) {
@@ -141,7 +153,10 @@ export class MunicipalServicesService {
         address: input.address !== undefined ? input.address : service.address,
         phone: input.phone !== undefined ? input.phone : service.phone,
         email: input.email !== undefined ? input.email : service.email,
-        website: input.website !== undefined ? input.website : service.website,
+        website:
+          input.website !== undefined
+            ? sanitizeHttpUrl(input.website)
+            : sanitizeHttpUrl(service.website),
         order: input.order !== undefined ? input.order : service.order,
         status,
         publishedAt,
@@ -162,7 +177,7 @@ export class MunicipalServicesService {
       userAgent: actor.userAgent,
     });
 
-    return updated;
+    return this.sanitizeWebsite(updated);
   }
 
   async remove(id: string, actor: AuditContext) {
@@ -181,6 +196,15 @@ export class MunicipalServicesService {
     });
 
     return this.prisma.municipalService.delete({ where: { id } });
+  }
+
+  @Cron('*/5 * * * *')
+  async publishScheduled() {
+    const now = new Date();
+    await this.prisma.municipalService.updateMany({
+      where: { status: ContentStatus.SCHEDULED, scheduledAt: { lte: now } },
+      data: { status: ContentStatus.PUBLISHED, publishedAt: now, scheduledAt: null },
+    });
   }
 
   async publish(id: string, actor: AuditContext) {
@@ -295,7 +319,7 @@ export class MunicipalServicesService {
     let candidate = slug;
     let counter = 1;
 
-    while (true) {
+    for (;;) {
       const existing = await this.prisma.municipalService.findUnique({ where: { slug: candidate } });
       if (!existing || existing.id === excludeId) {
         return candidate;

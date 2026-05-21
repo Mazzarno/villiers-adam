@@ -1,12 +1,15 @@
-'use client';
-
-import * as React from 'react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Briefcase, ChevronLeft, Phone, Mail, Globe, MapPin, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import api, { type MunicipalService } from '@/lib/api';
+
+export const metadata: Metadata = {
+  title: 'Services Municipaux',
+  description: 'Retrouvez les services proposés par la mairie de Villiers-Adam et leurs modalités d\'accueil.',
+};
 
 const formatOpeningHours = (hours?: unknown) => {
   if (!hours) return undefined;
@@ -20,25 +23,17 @@ const formatOpeningHours = (hours?: unknown) => {
   return undefined;
 };
 
-export default function ServicesPage() {
-  const [services, setServices] = React.useState<MunicipalService[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
+export default async function ServicesPage() {
+  let services: MunicipalService[] = [];
+  let hasError = false;
 
-  React.useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await api.municipalServices.list();
-        setServices(data);
-      } catch (error) {
-        console.error('Failed to load services:', error);
-        setServices([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    load();
-  }, []);
+  try {
+    services = await api.municipalServices.list();
+  } catch (error) {
+    console.error('Failed to load services:', error);
+    hasError = true;
+  }
+  const hasLiveData = services.length > 0;
 
   return (
     <div className="min-h-screen">
@@ -78,17 +73,19 @@ export default function ServicesPage() {
 
       <section className="py-12 lg:py-16">
         <div className="container">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          {hasError && (
+            <div className="mb-8 p-4 rounded-organic border border-villiers-gold/25 bg-villiers-gold/5 text-sm text-muted-foreground">
+              Les informations sont temporairement indisponibles.
             </div>
-          ) : services.length === 0 ? (
-            <div className="text-center text-muted-foreground">
-              Aucun service publié pour le moment.
+          )}
+          {!hasError && !hasLiveData && (
+            <div className="mb-8 p-4 rounded-organic border border-villiers-gold/25 bg-villiers-gold/5 text-sm text-muted-foreground">
+              Aucune donnee publiee pour le moment.
             </div>
-          ) : (
+          )}
+          {!hasError && hasLiveData && (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {services.map((service) => (
+            {services.map((service) => (
                 <Card key={service.id} className="group hover:shadow-lg transition-all">
                   {service.coverImage && (
                     <div className="relative aspect-[16/9] overflow-hidden rounded-t-lg">
@@ -136,7 +133,7 @@ export default function ServicesPage() {
                       {service.website && (
                         <div className="flex items-start gap-2">
                           <Globe className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                          <Link href={service.website} target="_blank" className="hover:text-primary transition-colors">
+                          <Link href={service.website} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
                             Site web
                           </Link>
                         </div>
@@ -150,8 +147,8 @@ export default function ServicesPage() {
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
+            ))}
+          </div>
           )}
         </div>
       </section>

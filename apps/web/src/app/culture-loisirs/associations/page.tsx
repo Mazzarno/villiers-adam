@@ -1,6 +1,4 @@
-'use client';
-
-import * as React from 'react';
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Users, ChevronLeft, MapPin, Mail, Phone, Globe } from 'lucide-react';
@@ -8,25 +6,19 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import api, { type DirectoryEntry } from '@/lib/api';
 
-export default function AssociationsPage() {
-  const [items, setItems] = React.useState<DirectoryEntry[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
+export const metadata: Metadata = {
+  title: 'Associations',
+  description: 'Retrouvez les associations culturelles, sportives et solidaires de Villiers-Adam.',
+};
 
-  React.useEffect(() => {
-    const load = async () => {
-      try {
-        const data = await api.directory.list({ type: 'ASSOCIATION' });
-        setItems(data);
-      } catch (error) {
-        console.error('Failed to load associations:', error);
-        setItems([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+export default async function AssociationsPage() {
+  let items: DirectoryEntry[] = [];
 
-    load();
-  }, []);
+  try {
+    items = await api.directory.list({ type: 'ASSOCIATION' });
+  } catch (error) {
+    console.error('Failed to load associations:', error);
+  }
 
   return (
     <div className="min-h-screen">
@@ -66,13 +58,12 @@ export default function AssociationsPage() {
 
       <section className="py-12 lg:py-16">
         <div className="container">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-            </div>
-          ) : items.length === 0 ? (
-            <div className="text-center text-muted-foreground">
-              Aucune association publiée pour le moment.
+          {items.length === 0 ? (
+            <div className="text-center py-16">
+              <Users className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
+              <p className="text-muted-foreground">
+                Aucune association publiée pour le moment.
+              </p>
             </div>
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -121,7 +112,7 @@ export default function AssociationsPage() {
                       {item.website && (
                         <div className="flex items-start gap-2">
                           <Globe className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                          <Link href={item.website} target="_blank" className="hover:text-primary transition-colors">
+                          <Link href={item.website} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
                             Site web
                           </Link>
                         </div>

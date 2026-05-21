@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useSearchParams } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
 import { MoreHorizontal, Plus, ArrowUpDown, Pencil, Trash2, Archive, Send, ExternalLink, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -48,12 +49,14 @@ const defaultFormData: FormData = {
 };
 
 export default function DemarchesPage() {
+  const searchParams = useSearchParams();
   const [data, setData] = React.useState<Procedure[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [formData, setFormData] = React.useState<FormData>(defaultFormData);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [formError, setFormError] = React.useState('');
   const [scheduleDialogOpen, setScheduleDialogOpen] = React.useState(false);
   const [scheduleValue, setScheduleValue] = React.useState('');
   const [schedulingId, setSchedulingId] = React.useState<string | null>(null);
@@ -77,6 +80,7 @@ export default function DemarchesPage() {
   const handleCreate = () => {
     setEditingId(null);
     setFormData(defaultFormData);
+    setFormError('');
     setDialogOpen(true);
   };
 
@@ -87,12 +91,19 @@ export default function DemarchesPage() {
       summary: item.summary || '',
       externalUrl: item.externalUrl || '',
     });
+    setFormError('');
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      if (!formData.title.trim()) {
+        setFormError('Le titre est obligatoire.');
+        setIsSaving(false);
+        return;
+      }
+
       if (editingId) {
         await procedures.update(editingId, formData);
       } else {
@@ -101,6 +112,11 @@ export default function DemarchesPage() {
       setDialogOpen(false);
       loadData();
     } catch (error) {
+      const message =
+        (error as { data?: { message?: string } })?.data?.message ||
+        (error as Error).message ||
+        'Impossible d\'enregistrer la démarche.';
+      setFormError(message);
       console.error('Failed to save:', error);
     } finally {
       setIsSaving(false);
@@ -298,6 +314,16 @@ export default function DemarchesPage() {
     },
   ];
 
+  const searchTerm = (searchParams.get('search') || '').trim().toLowerCase();
+  const filteredData = React.useMemo(() => {
+    if (!searchTerm) return data;
+    return data.filter((item) =>
+      [item.title, item.summary]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(searchTerm)),
+    );
+  }, [data, searchTerm]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -320,7 +346,7 @@ export default function DemarchesPage() {
       ) : (
         <DataTable
           columns={columns}
-          data={data}
+          data={filteredData}
           searchKey="title"
           searchPlaceholder="Rechercher une démarche..."
           filterColumn="status"
@@ -329,7 +355,7 @@ export default function DemarchesPage() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>
               {editingId ? 'Modifier la démarche' : 'Nouvelle démarche'}
@@ -339,6 +365,11 @@ export default function DemarchesPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {formError && (
+              <div className="rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {formError}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="title">Titre</Label>
               <Input

@@ -8,20 +8,34 @@
     "dev:infra": "docker compose --env-file .env -f docker/docker-compose.dev.yml up -d",
     "db:migrate": "dotenv -e .env -- pnpm -F @villiers-adam/api exec prisma migrate deploy",
     "db:seed": "dotenv -e .env -- pnpm -F @villiers-adam/api exec prisma db seed",
+    "db:studio": "dotenv -e .env -- pnpm -F @villiers-adam/api exec prisma studio",
+    "db:reset": "dotenv -e .env -- pnpm -F @villiers-adam/api exec tsx prisma/reset.ts",
+    "legacy:import": "dotenv -e .env -- pnpm -F @villiers-adam/api exec tsx prisma/import-legacy-curated.ts",
     "dev:setup": "pnpm dev:env && pnpm dev:infra && pnpm db:migrate && pnpm db:seed && pnpm dev",
+    "runtime:web:dev:clean": "pnpm --filter @villiers-adam/web dev:clean",
+    "runtime:web:start:clean": "pnpm --filter @villiers-adam/web start:clean",
+    "runtime:admin:dev:clean": "pnpm --filter @villiers-adam/admin dev:clean",
+    "runtime:admin:start:clean": "pnpm --filter @villiers-adam/admin start:clean",
+    "docker:preprod:config": "docker compose --env-file .env.preprod -f docker-compose.preprod.yml config",
+    "docker:preprod:build": "docker compose --env-file .env.preprod -f docker-compose.preprod.yml build",
+    "docker:preprod:up": "docker compose --env-file .env.preprod -f docker-compose.preprod.yml up -d",
+    "docker:preprod:down": "docker compose --env-file .env.preprod -f docker-compose.preprod.yml down",
+    "docker:preprod:logs": "docker compose --env-file .env.preprod -f docker-compose.preprod.yml logs -f --tail=200",
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "format": "prettier --write \"**/*.{ts,tsx,js,json,md,css,yml,yaml}\""
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md,css,yml,yaml}\"",
+    "audit": "pnpm audit",
+    "audit:prod": "pnpm audit --prod --audit-level=high"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "dotenv-cli": "^7.4.2",
     "eslint": "^8.57.0",
-    "eslint-config-next": "^14.2.0",
+    "eslint-config-next": "^15.5.10",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react": "^7.0.0",
     "eslint-plugin-react-hooks": "^4.0.0",
@@ -29,5 +43,22 @@
     "tailwindcss": "^3.4.0",
     "turbo": "^2.0.0",
     "typescript": "^5.5.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "axios": "^1.13.6",
+      "fast-xml-parser": "^4.5.5",
+      "glob": "^10.5.0",
+      "glob@7>minimatch": "^3.1.4",
+      "glob@8>minimatch": "^5.1.8",
+      "minimatch": "^9.0.9",
+      "lodash": "^4.18.0",
+      "markdown-it": "^14.1.1",
+      "multer": "^2.1.1",
+      "express@4.22.1>path-to-regexp": "0.1.13",
+      "qs": "^6.14.2",
+      "serialize-javascript": "^7.0.3",
+      "tar": "^7.5.11"
+    }
   }
 }

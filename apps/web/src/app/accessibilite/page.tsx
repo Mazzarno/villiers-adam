@@ -27,10 +27,10 @@ export default function AccessibilitePage() {
       {/* Hero */}
       <section className="bg-primary text-primary-foreground py-16">
         <div className="container">
-          <h1 className="font-heading text-4xl md:text-5xl font-bold mb-4">
+          <h1 className="font-heading text-4xl md:text-5xl font-bold mb-4 break-words text-balance">
             Accessibilité
           </h1>
-          <p className="text-lg text-primary-foreground/80 max-w-2xl">
+          <p className="text-lg text-primary-foreground/80 max-w-2xl break-words">
             Le site de Villiers-Adam s&apos;engage à rendre ses services accessibles à tous les citoyens.
           </p>
         </div>
@@ -40,15 +40,15 @@ export default function AccessibilitePage() {
       <section className="container py-12">
         <div className="grid lg:grid-cols-2 gap-12">
           {/* Settings panel */}
-          <div>
-            <h2 className="font-heading text-2xl font-semibold mb-6">
-              Personnaliser l&apos;affichage
-            </h2>
+          <div className="min-w-0">
+              <h2 className="font-heading text-2xl font-semibold mb-6 break-words">
+                Personnaliser l&apos;affichage
+              </h2>
             <AccessibilityPanel />
           </div>
 
           {/* Info */}
-          <div className="space-y-8">
+          <div className="space-y-8 min-w-0">
             {/* Features */}
             <div>
               <h2 className="font-heading text-2xl font-semibold mb-6">
@@ -59,7 +59,7 @@ export default function AccessibilitePage() {
                   <ul className="space-y-3">
                     {accessibilityFeatures.map((feature) => (
                       <li key={feature} className="flex items-start gap-3">
-                        <Check className="h-5 w-5 text-green-500 shrink-0 mt-0.5" />
+                        <Check className="h-5 w-5 text-villiers-green shrink-0 mt-0.5" />
                         <span>{feature}</span>
                       </li>
                     ))}
@@ -129,14 +129,14 @@ export default function AccessibilitePage() {
                     </p>
                     <p>
                       <strong>Par téléphone :</strong>{' '}
-                      <a href="tel:+33134089000" className="text-primary hover:underline">
-                        01 34 08 90 00
+                      <a href="tel:+33134692817" className="text-primary hover:underline">
+                        01 34 69 28 17
                       </a>
                     </p>
                     <p>
                       <strong>Par courrier :</strong><br />
                       Mairie de Villiers-Adam<br />
-                      1 Place de la Mairie<br />
+                      Place Victor-Hugo<br />
                       95840 Villiers-Adam
                     </p>
                   </div>
@@ -155,19 +155,21 @@ export default function AccessibilitePage() {
                     href="https://accessibilite.numerique.gouv.fr/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-primary hover:underline"
+                    className="flex min-w-0 items-start gap-2 text-sm text-primary hover:underline"
                   >
-                    RGAA - Référentiel Général d&apos;Amélioration de l&apos;Accessibilité
-                    <ExternalLink className="h-4 w-4" />
+                    <span className="break-words">
+                      RGAA - Référentiel Général d&apos;Amélioration de l&apos;Accessibilité
+                    </span>
+                    <ExternalLink className="h-4 w-4 shrink-0" />
                   </a>
                   <a
                     href="https://www.defenseurdesdroits.fr/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-sm text-primary hover:underline"
+                    className="flex min-w-0 items-start gap-2 text-sm text-primary hover:underline"
                   >
-                    Défenseur des droits
-                    <ExternalLink className="h-4 w-4" />
+                    <span className="break-words">Défenseur des droits</span>
+                    <ExternalLink className="h-4 w-4 shrink-0" />
                   </a>
                 </CardContent>
               </Card>

@@ -71,6 +71,7 @@ model User {
   passwordHash String
   firstName    String
   lastName     String
+  avatarUrl    String?
   role         UserRole @default(READER)
   mfaEnabled   Boolean  @default(false)
   mfaSecret    String?
@@ -438,6 +439,7 @@ model Settings {
   contactEmail  String?
   contactPhone  String?
   address       Json?
+  municipalityProfile Json?
   updatedAt     DateTime @updatedAt
   createdAt     DateTime @default(now())
 }

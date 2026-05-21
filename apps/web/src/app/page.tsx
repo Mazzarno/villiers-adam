@@ -1,34 +1,38 @@
 import { FlashBanner } from '@/components/layout/flash-banner';
-import { Hero } from '@/components/home/hero';
+import { HeroCarousel } from '@/components/home/hero-carousel';
 import { QuickAccess } from '@/components/home/quick-access';
 import { NewsSection } from '@/components/home/news-section';
 import { EventsSection } from '@/components/home/events-section';
+import { CommuneHighlights } from '@/components/home/commune-highlights';
 import { FacebookFeed } from '@/components/home/facebook-feed';
 import api from '@/lib/api';
 
 export const revalidate = 0;
 
 async function getHomeData() {
-  try {
-    const [articles, events, flashInfo] = await Promise.all([
-      api.articles.recent(3),
-      api.events.upcoming(3),
-      api.flashInfo.active(),
-    ]);
+  const [articlesResult, eventsResult, flashInfoResult] = await Promise.allSettled([
+    api.articles.recent(3),
+    api.events.upcoming(3),
+    api.flashInfo.active(),
+  ]);
 
-    return {
-      flashInfo,
-      articles,
-      events,
-    };
-  } catch (error) {
-    console.error('Error fetching home data:', error);
-    return {
-      flashInfo: [],
-      articles: [],
-      events: [],
-    };
+  if (articlesResult.status === 'rejected') {
+    console.error('Error fetching homepage articles:', articlesResult.reason);
   }
+
+  if (eventsResult.status === 'rejected') {
+    console.error('Error fetching homepage events:', eventsResult.reason);
+  }
+
+  if (flashInfoResult.status === 'rejected') {
+    console.error('Error fetching flash infos:', flashInfoResult.reason);
+  }
+
+  return {
+    articles: articlesResult.status === 'fulfilled' ? articlesResult.value : [],
+    events: eventsResult.status === 'fulfilled' ? eventsResult.value : [],
+    flashInfo: flashInfoResult.status === 'fulfilled' ? flashInfoResult.value : [],
+  };
 }
 
 export default async function HomePage() {
@@ -40,16 +44,19 @@ export default async function HomePage() {
       {flashInfo.length > 0 && <FlashBanner items={flashInfo} />}
 
       {/* Hero section */}
-      <Hero />
+      <HeroCarousel />
 
       {/* Quick access */}
       <QuickAccess />
 
-      {/* Recent news */}
-      {articles.length > 0 && <NewsSection articles={articles} />}
+      {/* Recent news - toujours affiche, avec fallback statique si vide */}
+      <NewsSection articles={articles} />
 
-      {/* Upcoming events */}
-      {events.length > 0 && <EventsSection events={events} />}
+      {/* Upcoming events - toujours affiche, avec fallback statique si vide */}
+      <EventsSection events={events} />
+
+      {/* Chiffres cles de la commune */}
+      <CommuneHighlights />
 
       {/* Facebook feed */}
       <FacebookFeed />

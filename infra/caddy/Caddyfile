@@ -1,0 +1,26 @@
+{
+	email {$CADDY_EMAIL}
+}
+
+{$WEB_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:3000
+}
+
+{$ADMIN_DOMAIN} {
+	encode zstd gzip
+
+	# Optional extra gate for preprod admin.
+	# Uncomment after replacing placeholder hash with real value:
+	# basicauth {
+	# 	{$ADMIN_BASIC_AUTH_USER} {$ADMIN_BASIC_AUTH_PASSWORD_HASH}
+	# }
+
+	reverse_proxy admin:3002
+}
+
+{$API_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy api:3001
+}
+

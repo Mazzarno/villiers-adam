@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import NextImage from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { useDropzone } from 'react-dropzone';
 import {
@@ -11,7 +12,7 @@ import {
   Trash2,
   Download,
   MoreHorizontal,
-  Image,
+  ImageIcon,
   FileText,
   Video,
   File,
@@ -52,12 +53,22 @@ import {
 } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { media as mediaApi, type Media } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+const resolveMediaUrl = (url: string) => {
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  return `${API_URL}${url}`;
+};
+
 function getFileIcon(mimeType: string) {
-  if (mimeType.startsWith('image/')) return Image;
+  if (mimeType.startsWith('image/')) return ImageIcon;
   if (mimeType.startsWith('video/')) return Video;
   if (mimeType.includes('pdf')) return FileText;
   return File;
@@ -91,6 +102,7 @@ function MediaLibraryContent() {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [filterType, setFilterType] = React.useState<string>('all');
   const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid');
+  const [showDuplicates, setShowDuplicates] = React.useState(false);
   const [selectedMedia, setSelectedMedia] = React.useState<Media | null>(null);
   const [deleteMedia, setDeleteMedia] = React.useState<Media | null>(null);
   const [showUploadDialog, setShowUploadDialog] = React.useState(
@@ -192,6 +204,29 @@ function MediaLibraryContent() {
     }
   };
 
+  const totalSize = React.useMemo(
+    () => mediaList.reduce((sum, item) => sum + (item.size || 0), 0),
+    [mediaList],
+  );
+
+  const duplicateIds = React.useMemo(() => {
+    const groups = new Map<string, Media[]>();
+    mediaList.forEach((item) => {
+      const key = `${item.filename}-${item.size ?? 0}`;
+      const current = groups.get(key) ?? [];
+      current.push(item);
+      groups.set(key, current);
+    });
+
+    const ids = new Set<string>();
+    groups.forEach((group) => {
+      if (group.length > 1) {
+        group.forEach((item) => ids.add(item.id));
+      }
+    });
+    return ids;
+  }, [mediaList]);
+
   const filteredMedia = React.useMemo(() => {
     let filtered = mediaList;
 
@@ -205,8 +240,12 @@ function MediaLibraryContent() {
       filtered = filtered.filter((m) => m.mimeType.startsWith(filterType));
     }
 
+    if (showDuplicates) {
+      filtered = filtered.filter((m) => duplicateIds.has(m.id));
+    }
+
     return filtered;
-  }, [mediaList, searchQuery, filterType]);
+  }, [mediaList, searchQuery, filterType, showDuplicates, duplicateIds]);
 
   return (
     <div className="space-y-6">
@@ -222,6 +261,14 @@ function MediaLibraryContent() {
           <Upload className="mr-2 h-4 w-4" />
           Téléverser
         </Button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <Badge variant="secondary">{mediaList.length} fichier(s)</Badge>
+        <Badge variant="secondary">{formatFileSize(totalSize)} stockés</Badge>
+        {duplicateIds.size > 0 && (
+          <Badge variant="outline">{duplicateIds.size} doublon(s)</Badge>
+        )}
       </div>
 
       {/* Filters */}
@@ -246,6 +293,13 @@ function MediaLibraryContent() {
             <SelectItem value="application/pdf">PDF</SelectItem>
           </SelectContent>
         </Select>
+        <Button
+          type="button"
+          variant={showDuplicates ? 'secondary' : 'outline'}
+          onClick={() => setShowDuplicates((prev) => !prev)}
+        >
+          Doublons
+        </Button>
         <div className="flex items-center gap-1 border rounded-md self-start sm:self-auto">
           <Button
             variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
@@ -271,7 +325,7 @@ function MediaLibraryContent() {
         </div>
       ) : filteredMedia.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-96 text-center">
-          <Image className="h-16 w-16 text-muted-foreground mb-4" />
+          <ImageIcon className="h-16 w-16 text-muted-foreground mb-4" />
           <h3 className="text-lg font-medium">Aucun média</h3>
           <p className="text-muted-foreground mt-1">
             Téléversez votre premier fichier pour commencer
@@ -297,11 +351,19 @@ function MediaLibraryContent() {
                 className="group relative aspect-square rounded-lg overflow-hidden border bg-muted cursor-pointer"
                 onClick={() => setSelectedMedia(media)}
               >
+                {duplicateIds.has(media.id) && (
+                  <Badge variant="secondary" className="absolute left-2 top-2 z-10">
+                    Doublon
+                  </Badge>
+                )}
                 {media.mimeType.startsWith('image/') ? (
-                  <img
-                    src={media.url}
+                  <NextImage
+                    src={resolveMediaUrl(media.url)}
                     alt={media.alt || media.filename}
-                    className="object-cover w-full h-full transition-transform group-hover:scale-105"
+                    fill
+                    sizes="(max-width: 768px) 50vw, (max-width: 1200px) 25vw, 16vw"
+                    className="object-cover transition-transform group-hover:scale-105"
+                    unoptimized
                   />
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full">
@@ -338,10 +400,13 @@ function MediaLibraryContent() {
                 onClick={() => setSelectedMedia(media)}
               >
                 {media.mimeType.startsWith('image/') ? (
-                  <img
-                    src={media.url}
+                  <NextImage
+                    src={resolveMediaUrl(media.url)}
                     alt={media.alt || media.filename}
+                    width={48}
+                    height={48}
                     className="w-12 h-12 object-cover rounded"
+                    unoptimized
                   />
                 ) : (
                   <div className="w-12 h-12 flex items-center justify-center bg-muted rounded">
@@ -349,7 +414,12 @@ function MediaLibraryContent() {
                   </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{media.filename}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium truncate">{media.filename}</p>
+                    {duplicateIds.has(media.id) && (
+                      <Badge variant="outline">Doublon</Badge>
+                    )}
+                  </div>
                   <p className="text-sm text-muted-foreground">
                     {media.mimeType} · {formatFileSize(media.size)} ·{' '}
                     {formatDate(media.createdAt)}
@@ -365,7 +435,7 @@ function MediaLibraryContent() {
                     <DropdownMenuItem
                       onClick={(e) => {
                         e.stopPropagation();
-                        window.open(media.url, '_blank');
+                        window.open(resolveMediaUrl(media.url), '_blank');
                       }}
                     >
                       <Download className="mr-2 h-4 w-4" />
@@ -442,10 +512,19 @@ function MediaLibraryContent() {
             <div className="space-y-4">
               <div className="aspect-video bg-muted rounded-lg overflow-hidden flex items-center justify-center">
                 {selectedMedia.mimeType.startsWith('image/') ? (
-                  <img
-                    src={selectedMedia.url}
+                  <NextImage
+                    src={resolveMediaUrl(selectedMedia.url)}
                     alt={selectedMedia.alt || selectedMedia.filename}
+                    width={1280}
+                    height={720}
                     className="max-w-full max-h-full object-contain"
+                    unoptimized
+                  />
+                ) : selectedMedia.mimeType.includes('pdf') ? (
+                  <iframe
+                    src={resolveMediaUrl(selectedMedia.url)}
+                    title={selectedMedia.filename}
+                    className="h-[60vh] w-full"
                   />
                 ) : (
                   <div className="text-center">
@@ -473,17 +552,17 @@ function MediaLibraryContent() {
                 </div>
                 <div>
                   <Label className="text-muted-foreground">URL</Label>
-                  <p className="truncate">{selectedMedia.url}</p>
+                  <p className="truncate">{resolveMediaUrl(selectedMedia.url)}</p>
                 </div>
               </div>
               <div className="flex justify-end gap-2">
                 <Button
                   variant="outline"
-                  onClick={() => navigator.clipboard.writeText(selectedMedia.url)}
+                  onClick={() => navigator.clipboard.writeText(resolveMediaUrl(selectedMedia.url))}
                 >
                   Copier l&apos;URL
                 </Button>
-                <Button onClick={() => window.open(selectedMedia.url, '_blank')}>
+                <Button onClick={() => window.open(resolveMediaUrl(selectedMedia.url), '_blank')}>
                   <Download className="mr-2 h-4 w-4" />
                   Télécharger
                 </Button>

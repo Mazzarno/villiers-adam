@@ -7,6 +7,7 @@ export const userCreateSchema = z.object({
   password: z.string().min(8),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
+  avatarUrl: z.string().min(1).optional().nullable(),
   role: roleEnum.optional(),
   isActive: z.boolean().optional(),
 });
@@ -16,6 +17,7 @@ export const userUpdateSchema = z.object({
   password: z.string().min(8).optional(),
   firstName: z.string().min(1).optional(),
   lastName: z.string().min(1).optional(),
+  avatarUrl: z.string().min(1).optional().nullable(),
   role: roleEnum.optional(),
   isActive: z.boolean().optional(),
 });

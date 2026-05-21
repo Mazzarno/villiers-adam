@@ -1,11 +1,69 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
+const path = require('node:path');
+
 /** @type {import('next').NextConfig} */
+const isProduction = process.env.NODE_ENV === 'production';
+const outputFileTracingRoot = path.join(__dirname, '../..');
+
+function getUrlOrigin(value) {
+  if (!value) return null;
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
+function getRemotePattern(value) {
+  if (!value) return null;
+  try {
+    const parsed = new URL(value);
+    return {
+      protocol: parsed.protocol.replace(':', ''),
+      hostname: parsed.hostname,
+      port: parsed.port || undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+const apiOrigin = getUrlOrigin(process.env.NEXT_PUBLIC_API_URL);
+const webOrigin = getUrlOrigin(process.env.NEXT_PUBLIC_WEB_URL);
+const cspConnectSources = Array.from(
+  new Set(
+    [
+      "'self'",
+      'https://*.villiers-adam.fr',
+      'http://localhost:*',
+      'ws://localhost:*',
+      apiOrigin,
+      webOrigin,
+    ].filter(Boolean),
+  ),
+);
+const mediaSources = Array.from(
+  new Set(
+    [
+      "'self'",
+      'data:',
+      'blob:',
+      'https:',
+      'http://localhost:*',
+      apiOrigin,
+      webOrigin,
+    ].filter(Boolean),
+  ),
+);
 const ContentSecurityPolicy = `default-src 'self';
-  script-src 'self' 'unsafe-inline' 'unsafe-eval';
+  script-src 'self' 'unsafe-inline' ${isProduction ? '' : "'unsafe-eval'"};
+  script-src-attr 'none';
   style-src 'self' 'unsafe-inline';
-  img-src 'self' data: blob: https: http://localhost:*;
-  media-src 'self' https: http://localhost:*;
+  img-src ${mediaSources.join(' ')};
+  media-src ${mediaSources.filter((value) => value !== 'data:').join(' ')};
   font-src 'self' data:;
-  connect-src 'self' https://*.villiers-adam.fr http://localhost:* ws://localhost:*;
+  frame-src 'self' https: http://localhost:*;
+  connect-src ${cspConnectSources.join(' ')};
   object-src 'none';
   base-uri 'self';
   form-action 'self';
@@ -48,6 +106,8 @@ const securityHeaders = [
 
 const nextConfig = {
   reactStrictMode: true,
+  output: 'standalone',
+  outputFileTracingRoot,
   transpilePackages: ['@villiers-adam/shared'],
   images: {
     remotePatterns: [
@@ -59,7 +119,9 @@ const nextConfig = {
         protocol: 'http',
         hostname: 'localhost',
       },
-    ],
+      getRemotePattern(process.env.NEXT_PUBLIC_API_URL),
+      getRemotePattern(process.env.NEXT_PUBLIC_WEB_URL),
+    ].filter(Boolean),
   },
   async rewrites() {
     return [

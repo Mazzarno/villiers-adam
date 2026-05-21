@@ -25,6 +25,7 @@ export const settingsUpdateSchema = z.object({
   contactEmail: z.string().email().optional().nullable(),
   contactPhone: z.string().optional().nullable(),
   address: z.any().optional().nullable(),
+  municipalityProfile: z.any().optional().nullable(),
 });
 
 export type SettingsUpdateInput = z.infer<typeof settingsUpdateSchema>;

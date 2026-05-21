@@ -124,7 +124,7 @@ export default function CommercesPage() {
                       {item.website && (
                         <div className="flex items-start gap-2">
                           <Globe className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
-                          <Link href={item.website} target="_blank" className="hover:text-primary transition-colors">
+                          <Link href={item.website} target="_blank" rel="noopener noreferrer" className="hover:text-primary transition-colors">
                             Site web
                           </Link>
                         </div>

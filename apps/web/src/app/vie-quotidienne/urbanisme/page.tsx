@@ -12,7 +12,6 @@ import {
   Phone,
   Mail,
   Clock,
-  Download,
   ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -154,9 +153,11 @@ export default function UrbanismePage() {
                   Tout dépôt de sable, gravats, matériaux, etc., ainsi que d&apos;une benne à gravats,
                   doit faire l&apos;objet d&apos;une <strong className="text-foreground">demande d&apos;autorisation en Mairie</strong>.
                 </p>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Download className="h-3.5 w-3.5" />
-                  Formulaire de demande
+                <Button variant="outline" size="sm" className="gap-2" asChild>
+                  <a href="https://www.service-public.fr/particuliers/vosdroits/R13509" target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    Formulaire de demande
+                  </a>
                 </Button>
               </motion.div>
             </div>
@@ -244,17 +245,23 @@ export default function UrbanismePage() {
                   Documents à télécharger
                 </h3>
                 <div className="space-y-2">
-                  <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-xs">
-                    <Download className="h-3.5 w-3.5" />
-                    Cerfa Permis de construire
+                  <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-xs" asChild>
+                    <a href="https://www.service-public.fr/particuliers/vosdroits/R11637" target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Cerfa Permis de construire
+                    </a>
                   </Button>
-                  <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-xs">
-                    <Download className="h-3.5 w-3.5" />
-                    Cerfa Déclaration préalable
+                  <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-xs" asChild>
+                    <a href="https://www.service-public.fr/particuliers/vosdroits/R11646" target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Cerfa Déclaration préalable
+                    </a>
                   </Button>
-                  <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-xs">
-                    <Download className="h-3.5 w-3.5" />
-                    Cerfa Permis de démolir
+                  <Button variant="outline" size="sm" className="w-full justify-start gap-2 text-xs" asChild>
+                    <a href="https://www.service-public.fr/particuliers/vosdroits/R11636" target="_blank" rel="noopener noreferrer">
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      Cerfa Permis de démolir
+                    </a>
                   </Button>
                 </div>
               </motion.div>

@@ -1,569 +1,221 @@
-'use client';
-
-import * as React from 'react';
-import { useParams, useSearchParams, notFound } from 'next/navigation';
-import Image from 'next/image';
+import type { Metadata } from 'next';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import {
-  Calendar,
-  ChevronRight,
-  MapPin,
-  Clock,
-  AlertTriangle,
-  ArrowLeft,
-} from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { formatDate } from '@/lib/utils';
-import type { PageBlock } from '@/lib/api';
+import { notFound } from 'next/navigation';
+import { AlertTriangle, ArrowLeft } from 'lucide-react';
+
+import { ArticleDetailView } from '@/components/content/article-detail-view';
+import { EventDetailView } from '@/components/content/event-detail-view';
+import type { NewsItem } from '@/lib/data/news';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL || 'http://localhost:3002';
 
-type ContentType = 'page' | 'article' | 'event';
-
-interface PreviewData {
-  id: string;
+type PreviewArticleDraft = {
+  type: 'article';
+  sourceId: string | null;
+  editPath: string;
   title: string;
   slug: string;
-  summary?: string | null;
-  content?: string;
-  blocks?: PageBlock[] | null;
-  status: string;
-  publishedAt?: string | null;
+  summary: string | null;
+  content: string;
+  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED';
+  publishedAt: string | null;
   createdAt: string;
   updatedAt: string;
-  coverMedia?: { url?: string } | null;
-  // Article specific
-  type?: string;
-  isFlash?: boolean;
-  // Event specific
-  startsAt?: string;
-  endsAt?: string;
-  locationName?: string | null;
-  address?: string | null;
+  articleType: 'ACTUALITE' | 'PUBLICATION' | 'BREVE';
+  publicationType: 'ARRETE' | 'COMPTE_RENDU' | 'DELIBERATION' | null;
+  documentNumber: string | null;
+  meetingDate: string | null;
+  publicationYear: number | null;
+  isFlash: boolean;
+  coverMediaUrl: string | null;
+  documentUrl: string | null;
+};
+
+type PreviewEventDraft = {
+  type: 'event';
+  sourceId: string | null;
+  editPath: string;
+  title: string;
+  slug: string;
+  summary: string | null;
+  content: string;
+  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED';
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  locationName: string | null;
+  address: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
+  coverMediaUrl: string | null;
+};
+
+type PreviewDraftResponse = {
+  expiresAt: string;
+  draft: PreviewArticleDraft | PreviewEventDraft;
+};
+
+interface PreviewPageProps {
+  params: Promise<{ type: string; id: string }>;
+  searchParams: Promise<{ draftToken?: string }>;
 }
 
-function normalizeBlocks(value?: unknown): PageBlock[] {
-  if (!value) return [];
-  if (Array.isArray(value)) return value as PageBlock[];
-  if (typeof value === 'string') {
-    try {
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed) ? (parsed as PageBlock[]) : [];
-    } catch {
-      return [];
-    }
-  }
-  return [];
-}
+export const metadata: Metadata = {
+  title: 'Prévisualisation',
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+  },
+};
 
-async function fetchPreview(
-  type: ContentType,
-  id: string,
-  token: string
-): Promise<PreviewData | null> {
-  const endpoints: Record<ContentType, string> = {
-    page: `/pages/admin/${id}`,
-    article: `/articles/admin/${id}`,
-    event: `/events/admin/${id}`,
-  };
-
+async function getPreviewDraft(token: string): Promise<PreviewDraftResponse | null> {
   try {
-    const response = await fetch(`${API_URL}${endpoints[type]}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+    const response = await fetch(`${API_URL}/preview-drafts/${encodeURIComponent(token)}`, {
       cache: 'no-store',
     });
-
     if (!response.ok) {
-      console.error(`[Preview] Failed to fetch ${type}:`, response.status, response.statusText);
       return null;
     }
-
-    const data = await response.json();
-
-    // Normalize content
-    let content = '';
-    if (data.content) {
-      if (typeof data.content === 'string') {
-        content = data.content;
-      } else {
-        try {
-          content = JSON.stringify(data.content);
-        } catch {
-          content = '';
-        }
-      }
-    }
-
-    return {
-      ...data,
-      content,
-      blocks: normalizeBlocks(data.blocks),
-    };
+    return response.json();
   } catch {
     return null;
   }
 }
 
-function resolveMediaUrl(url?: string) {
+function resolveMediaUrl(url?: string | null) {
   if (!url) return undefined;
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
   return `${API_URL}${url}`;
 }
 
-function renderBlock(block: PageBlock, index: number) {
-  return (
-    <div key={block.id || index} className="rounded-organic border border-border/50 p-6">
-      {block.title && (
-        <h2 className="font-heading text-xl font-semibold text-foreground mb-3">
-          {block.title}
-        </h2>
-      )}
-      {block.type === 'section' && block.body && (
-        <div
-          className="prose prose-villiers max-w-none"
-          dangerouslySetInnerHTML={{ __html: block.body }}
-        />
-      )}
-      {block.type === 'cta' && (
-        <div className="space-y-4">
-          {block.body && (
-            <p className="text-muted-foreground">{block.body}</p>
-          )}
-          {block.linkUrl && (
-            <Link
-              href={block.linkUrl}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-primary-foreground text-sm font-medium"
-            >
-              {block.linkLabel || 'En savoir plus'}
-            </Link>
-          )}
-        </div>
-      )}
-      {block.type === 'media' && block.mediaUrl && (
-        <div className="relative aspect-[16/9] rounded-organic overflow-hidden">
-          <Image
-            src={resolveMediaUrl(block.mediaUrl) || ''}
-            alt={block.mediaAlt || block.title || 'Média'}
-            fill
-            className="object-cover"
-          />
-        </div>
-      )}
-    </div>
-  );
+function mapPreviewArticleToNewsItem(draft: PreviewArticleDraft): NewsItem {
+  return {
+    id: draft.sourceId ?? 'preview',
+    slug: draft.slug,
+    title: draft.title,
+    type:
+      draft.articleType === 'PUBLICATION'
+        ? 'publication'
+        : draft.articleType === 'BREVE'
+          ? 'breve'
+          : 'actualite',
+    publicationType:
+      draft.publicationType === 'ARRETE'
+        ? 'arrete'
+        : draft.publicationType === 'COMPTE_RENDU'
+          ? 'compte-rendu'
+          : draft.publicationType === 'DELIBERATION'
+            ? 'deliberation'
+            : undefined,
+    date: draft.publishedAt ?? draft.createdAt,
+    summary: draft.summary ?? '',
+    content: draft.content ?? '',
+    imageUrl: resolveMediaUrl(draft.coverMediaUrl),
+    tags: [],
+    pdfUrl: resolveMediaUrl(draft.documentUrl),
+    documentNumber: draft.documentNumber ?? undefined,
+    meetingDate: draft.meetingDate ?? undefined,
+    year: draft.publicationYear ?? undefined,
+  };
 }
 
-function PreviewBanner({ type, id }: { type: ContentType; id: string }) {
-  const typeLabels: Record<ContentType, string> = {
-    page: 'page',
-    article: 'actualité',
-    event: 'événement',
-  };
-
-  const editUrls: Record<ContentType, string> = {
-    page: `${ADMIN_URL}/content/pages/${id}`,
-    article: `${ADMIN_URL}/content/articles/${id}`,
-    event: `${ADMIN_URL}/content/events/${id}`,
-  };
-
+function PreviewBanner({ editPath }: { editPath: string }) {
   return (
-    <div className="fixed top-0 inset-x-0 z-50 bg-yellow-500 text-yellow-950">
+    <div className="fixed top-0 inset-x-0 z-50 bg-yellow-500 text-yellow-950 border-b border-yellow-600/60">
       <div className="container flex items-center justify-between py-2 text-sm">
         <div className="flex items-center gap-2">
           <AlertTriangle className="h-4 w-4" />
-          <span className="font-medium">
-            Mode prévisualisation - Cette {typeLabels[type]} n&apos;est pas encore publiée
-          </span>
+          <span className="font-medium">Prévisualisation — contenu non publié</span>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 text-yellow-950 hover:bg-yellow-400"
-            onClick={() => window.open(editUrls[type], '_self')}
-          >
-            <ArrowLeft className="mr-1 h-3 w-3" />
-            Retour à l&apos;édition
-          </Button>
-        </div>
+        <Link
+          href={`${ADMIN_URL}${editPath}`}
+          className="inline-flex items-center gap-1 rounded px-2 py-1 hover:bg-yellow-400/70 transition-colors"
+        >
+          <ArrowLeft className="h-3 w-3" />
+          Retour à l’édition
+        </Link>
       </div>
     </div>
   );
 }
 
-function PagePreview({ data }: { data: PreviewData }) {
-  const hasBlocks = !!data.blocks && data.blocks.length > 0;
-
+function ErrorState({ message }: { message: string }) {
   return (
-    <div className="min-h-screen pt-12">
-      {/* Hero */}
-      <section className="relative py-12 lg:py-16 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-villiers-blue/5 to-background" />
-        <div className="container max-w-4xl relative">
-          <motion.nav
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-2 text-sm text-muted-foreground mb-6"
-          >
-            <span>Accueil</span>
-            <ChevronRight className="h-4 w-4" />
-            <span className="text-foreground">{data.title}</span>
-          </motion.nav>
-
-          <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-3xl lg:text-4xl font-heading font-semibold text-foreground mb-4"
-          >
-            {data.title}
-          </motion.h1>
-
-          {data.summary && (
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="text-lg text-muted-foreground"
-            >
-              {data.summary}
-            </motion.p>
-          )}
-        </div>
-      </section>
-
-      {/* Content */}
-      <section className="py-8 lg:py-12">
-        <div className="container max-w-4xl">
-          {data.coverMedia?.url && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="relative aspect-[16/9] rounded-xl overflow-hidden mb-8"
-            >
-              <Image
-                src={resolveMediaUrl(data.coverMedia.url) || ''}
-                alt={data.title}
-                fill
-                className="object-cover"
-                priority
-              />
-            </motion.div>
-          )}
-
-          {hasBlocks ? (
-            <div className="space-y-8">
-              {data.blocks?.map((block, index) => renderBlock(block, index))}
-            </div>
-          ) : (
-            data.content && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="prose-villiers"
-                dangerouslySetInnerHTML={{ __html: data.content }}
-              />
-            )
-          )}
-        </div>
-      </section>
+    <div className="min-h-screen flex items-center justify-center px-4">
+      <div className="max-w-xl text-center space-y-3">
+        <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto" />
+        <h1 className="text-2xl font-semibold">Prévisualisation indisponible</h1>
+        <p className="text-muted-foreground">{message}</p>
+      </div>
     </div>
   );
 }
 
-function ArticlePreview({ data }: { data: PreviewData }) {
-  const typeLabels: Record<string, string> = {
-    ACTUALITE: 'Actualité',
-    PUBLICATION: 'Publication',
-    BREVE: 'Brève',
-  };
+export default async function PreviewPage({ params, searchParams }: PreviewPageProps) {
+  const { type, id } = await params;
+  const { draftToken } = await searchParams;
 
-  return (
-    <div className="min-h-screen pt-12">
-      {/* Hero */}
-      <section className="relative py-12 lg:py-16 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-villiers-blue/5 to-background" />
-        <div className="container max-w-4xl relative">
-          <motion.nav
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-2 text-sm text-muted-foreground mb-6"
-          >
-            <span>Accueil</span>
-            <ChevronRight className="h-4 w-4" />
-            <span>Actualités</span>
-            <ChevronRight className="h-4 w-4" />
-            <span className="text-foreground truncate max-w-[200px]">{data.title}</span>
-          </motion.nav>
+  if (type !== 'article' && type !== 'event') {
+    notFound();
+  }
 
-          <motion.header
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div className="flex flex-wrap items-center gap-3 mb-4">
-              {data.type && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-villiers-blue/10 text-villiers-blue border border-villiers-blue/20">
-                  {typeLabels[data.type] || data.type}
-                </span>
-              )}
-              {data.isFlash && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 border border-yellow-200">
-                  Flash info
-                </span>
-              )}
-              <span className="text-sm text-muted-foreground flex items-center gap-1">
-                <Calendar className="h-4 w-4" />
-                {formatDate(data.publishedAt || data.createdAt)}
-              </span>
-            </div>
-
-            <h1 className="text-3xl lg:text-4xl font-heading font-semibold text-foreground mb-4">
-              {data.title}
-            </h1>
-
-            {data.summary && (
-              <p className="text-lg text-muted-foreground leading-relaxed">
-                {data.summary}
-              </p>
-            )}
-          </motion.header>
-        </div>
-      </section>
-
-      {/* Content */}
-      <section className="py-8 lg:py-12">
-        <div className="container max-w-4xl">
-          {data.coverMedia?.url && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="relative aspect-[16/9] rounded-xl overflow-hidden mb-8"
-            >
-              <Image
-                src={resolveMediaUrl(data.coverMedia.url) || ''}
-                alt={data.title}
-                fill
-                className="object-cover"
-                priority
-              />
-            </motion.div>
-          )}
-
-          {data.content && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="prose-villiers"
-              dangerouslySetInnerHTML={{ __html: data.content }}
-            />
-          )}
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-4 pt-6 mt-8 border-t text-sm text-muted-foreground"
-          >
-            <Clock className="h-4 w-4" />
-            <span>Publié le {formatDate(data.publishedAt || data.createdAt)}</span>
-          </motion.div>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function EventPreview({ data }: { data: PreviewData }) {
-  return (
-    <div className="min-h-screen pt-12">
-      {/* Hero */}
-      <section className="relative py-12 lg:py-16 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-villiers-blue/5 to-background" />
-        <div className="container max-w-4xl relative">
-          <motion.nav
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-2 text-sm text-muted-foreground mb-6"
-          >
-            <span>Accueil</span>
-            <ChevronRight className="h-4 w-4" />
-            <span>Agenda</span>
-            <ChevronRight className="h-4 w-4" />
-            <span className="text-foreground truncate max-w-[200px]">{data.title}</span>
-          </motion.nav>
-
-          <motion.header
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <h1 className="text-3xl lg:text-4xl font-heading font-semibold text-foreground mb-4">
-              {data.title}
-            </h1>
-
-            <div className="flex flex-wrap items-center gap-4 text-muted-foreground">
-              {data.startsAt && (
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-5 w-5" />
-                  <span>
-                    {formatDate(data.startsAt)}
-                    {data.endsAt && ` - ${formatDate(data.endsAt)}`}
-                  </span>
-                </div>
-              )}
-              {data.locationName && (
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  <span>{data.locationName}</span>
-                </div>
-              )}
-            </div>
-
-            {data.summary && (
-              <p className="text-lg text-muted-foreground leading-relaxed mt-4">
-                {data.summary}
-              </p>
-            )}
-          </motion.header>
-        </div>
-      </section>
-
-      {/* Content */}
-      <section className="py-8 lg:py-12">
-        <div className="container max-w-4xl">
-          {data.coverMedia?.url && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="relative aspect-[16/9] rounded-xl overflow-hidden mb-8"
-            >
-              <Image
-                src={resolveMediaUrl(data.coverMedia.url) || ''}
-                alt={data.title}
-                fill
-                className="object-cover"
-                priority
-              />
-            </motion.div>
-          )}
-
-          {/* Event details card */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-muted/30 rounded-xl p-6 mb-8"
-          >
-            <h2 className="font-heading font-semibold text-lg mb-4">
-              Informations pratiques
-            </h2>
-            <dl className="grid gap-4 sm:grid-cols-2">
-              {data.startsAt && (
-                <div>
-                  <dt className="text-sm text-muted-foreground">Date de début</dt>
-                  <dd className="font-medium">{formatDate(data.startsAt)}</dd>
-                </div>
-              )}
-              {data.endsAt && (
-                <div>
-                  <dt className="text-sm text-muted-foreground">Date de fin</dt>
-                  <dd className="font-medium">{formatDate(data.endsAt)}</dd>
-                </div>
-              )}
-              {data.locationName && (
-                <div>
-                  <dt className="text-sm text-muted-foreground">Lieu</dt>
-                  <dd className="font-medium">{data.locationName}</dd>
-                </div>
-              )}
-              {data.address && (
-                <div>
-                  <dt className="text-sm text-muted-foreground">Adresse</dt>
-                  <dd className="font-medium">{data.address}</dd>
-                </div>
-              )}
-            </dl>
-          </motion.div>
-
-          {data.content && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="prose-villiers"
-              dangerouslySetInnerHTML={{ __html: data.content }}
-            />
-          )}
-        </div>
-      </section>
-    </div>
-  );
-}
-
-export default function PreviewPage() {
-  const params = useParams();
-  const searchParams = useSearchParams();
-  const [data, setData] = React.useState<PreviewData | null>(null);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
-
-  const type = params.type as ContentType;
-  const id = params.id as string;
-  const token = searchParams.get('token');
-
-  React.useEffect(() => {
-    const load = async () => {
-      if (!token) {
-        setError('Token de prévisualisation manquant');
-        setLoading(false);
-        return;
-      }
-
-      if (!['page', 'article', 'event'].includes(type)) {
-        setError('Type de contenu invalide');
-        setLoading(false);
-        return;
-      }
-
-      const result = await fetchPreview(type, id, token);
-      if (!result) {
-        setError('Contenu introuvable ou session expirée. Veuillez vous reconnecter dans l\'admin et réessayer.');
-      } else {
-        setData(result);
-      }
-      setLoading(false);
-    };
-
-    load();
-  }, [type, id, token]);
-
-  if (loading) {
+  if (!draftToken) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
+      <ErrorState message="Jeton de prévisualisation manquant. Relancez la prévisualisation depuis l’administration." />
     );
   }
 
-  if (error || !data) {
+  const payload = await getPreviewDraft(draftToken);
+  if (!payload) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <AlertTriangle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-          <h1 className="text-xl font-semibold mb-2">Prévisualisation impossible</h1>
-          <p className="text-muted-foreground mb-6">{error || 'Contenu introuvable'}</p>
-          <Button onClick={() => window.close()}>Fermer</Button>
-        </div>
+      <ErrorState message="Jeton invalide ou expiré. Relancez la prévisualisation depuis l’administration." />
+    );
+  }
+
+  const draft = payload.draft;
+  if (draft.type !== type) {
+    return (
+      <ErrorState message="Jeton non valide pour ce type de contenu." />
+    );
+  }
+
+  const expectedId = draft.sourceId ?? 'new';
+  if (id !== expectedId) {
+    return (
+      <ErrorState message="Identifiant de prévisualisation invalide pour ce brouillon." />
+    );
+  }
+
+  const banner = <PreviewBanner editPath={draft.editPath} />;
+
+  if (draft.type === 'article') {
+    const item = mapPreviewArticleToNewsItem(draft);
+    return (
+      <div className="pt-10">
+        <ArticleDetailView item={item} relatedItems={[]} showRelated={false} previewBanner={banner} />
       </div>
     );
   }
 
   return (
-    <>
-      <PreviewBanner type={type} id={id} />
-      {type === 'page' && <PagePreview data={data} />}
-      {type === 'article' && <ArticlePreview data={data} />}
-      {type === 'event' && <EventPreview data={data} />}
-    </>
+    <div className="pt-10">
+      <EventDetailView
+        event={{
+          title: draft.title,
+          description: draft.summary ?? undefined,
+          content: draft.content ?? undefined,
+          featuredImage: resolveMediaUrl(draft.coverMediaUrl),
+          location: draft.locationName ?? undefined,
+          address: draft.address ?? undefined,
+          startDate: draft.startsAt ?? new Date().toISOString(),
+          endDate: draft.endsAt ?? undefined,
+        }}
+        previewBanner={banner}
+        backHref={`${ADMIN_URL}${draft.editPath}`}
+        backLabel="Retour à l’édition"
+      />
+    </div>
   );
 }

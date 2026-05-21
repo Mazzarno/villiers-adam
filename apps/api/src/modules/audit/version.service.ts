@@ -44,11 +44,6 @@ export class VersionService {
     const snapshot = this.sanitizeSnapshot(version.snapshot as Snapshot);
 
     switch (version.entityType) {
-      case 'Page':
-        return this.prisma.page.update({
-          where: { id: version.entityId },
-          data: snapshot as Prisma.PageUpdateInput,
-        });
       case 'Article':
         return this.prisma.article.update({
           where: { id: version.entityId },
@@ -59,11 +54,6 @@ export class VersionService {
           where: { id: version.entityId },
           data: snapshot as Prisma.EventUpdateInput,
         });
-      case 'AgendaItem':
-        return this.prisma.agendaItem.update({
-          where: { id: version.entityId },
-          data: snapshot as Prisma.AgendaItemUpdateInput,
-        });
       case 'DirectoryEntry':
         return this.prisma.directoryEntry.update({
           where: { id: version.entityId },
@@ -73,6 +63,21 @@ export class VersionService {
         return this.prisma.procedure.update({
           where: { id: version.entityId },
           data: snapshot as Prisma.ProcedureUpdateInput,
+        });
+      case 'CouncilMember':
+        return this.prisma.councilMember.update({
+          where: { id: version.entityId },
+          data: snapshot as Prisma.CouncilMemberUpdateInput,
+        });
+      case 'MunicipalService':
+        return this.prisma.municipalService.update({
+          where: { id: version.entityId },
+          data: snapshot as Prisma.MunicipalServiceUpdateInput,
+        });
+      case 'TransportInfo':
+        return this.prisma.transportInfo.update({
+          where: { id: version.entityId },
+          data: snapshot as Prisma.TransportInfoUpdateInput,
         });
       default:
         throw new BadRequestException('Unsupported entity type');

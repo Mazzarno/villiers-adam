@@ -1,7 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { ContentStatus, Prisma } from '@prisma/client';
 import { slugify } from '@villiers-adam/shared';
 
+import { sanitizeHttpUrl } from '../../common/security/url-sanitizer';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { VersionService } from '../audit/version.service';
@@ -20,12 +22,24 @@ export class TransportsService {
     private readonly versionService: VersionService,
   ) {}
 
+  private sanitizeWebsite<T extends { website: string | null }>(info: T): T {
+    return {
+      ...info,
+      website: sanitizeHttpUrl(info.website),
+    };
+  }
+
   async listPublished() {
-    return this.prisma.transportInfo.findMany({
-      where: { status: ContentStatus.PUBLISHED, publishedAt: { lte: new Date() } },
+    const now = new Date();
+    const transportInfos = await this.prisma.transportInfo.findMany({
+      where: {
+        status: ContentStatus.PUBLISHED,
+        OR: [{ publishedAt: { lte: now } }, { publishedAt: null }],
+      },
       orderBy: { updatedAt: 'desc' },
       include: { coverMedia: true },
     });
+    return transportInfos.map((info) => this.sanitizeWebsite(info));
   }
 
   async listAll(params: { status?: ContentStatus; search?: string }) {
@@ -36,11 +50,12 @@ export class TransportsService {
     if (params.search) {
       where.title = { contains: params.search, mode: 'insensitive' };
     }
-    return this.prisma.transportInfo.findMany({
+    const transportInfos = await this.prisma.transportInfo.findMany({
       where,
       orderBy: { updatedAt: 'desc' },
       include: { coverMedia: true },
     });
+    return transportInfos.map((info) => this.sanitizeWebsite(info));
   }
 
   async getById(id: string) {
@@ -51,7 +66,7 @@ export class TransportsService {
     if (!info) {
       throw new NotFoundException('Transport info not found');
     }
-    return info;
+    return this.sanitizeWebsite(info);
   }
 
   async getBySlug(slug: string) {
@@ -62,7 +77,7 @@ export class TransportsService {
     if (!info || info.status !== ContentStatus.PUBLISHED) {
       throw new NotFoundException('Transport info not found');
     }
-    return info;
+    return this.sanitizeWebsite(info);
   }
 
   async create(input: TransportCreateInput, actor: AuditContext) {
@@ -77,7 +92,7 @@ export class TransportsService {
         summary: input.summary ?? null,
         content: input.content,
         operator: input.operator ?? null,
-        website: input.website ?? null,
+        website: sanitizeHttpUrl(input.website),
         phone: input.phone ?? null,
         status,
         publishedAt,
@@ -98,7 +113,7 @@ export class TransportsService {
       userAgent: actor.userAgent,
     });
 
-    return info;
+    return this.sanitizeWebsite(info);
   }
 
   async update(id: string, input: TransportUpdateInput, actor: AuditContext) {
@@ -125,7 +140,10 @@ export class TransportsService {
         summary: input.summary !== undefined ? input.summary : info.summary,
         content: input.content !== undefined ? input.content : info.content,
         operator: input.operator !== undefined ? input.operator : info.operator,
-        website: input.website !== undefined ? input.website : info.website,
+        website:
+          input.website !== undefined
+            ? sanitizeHttpUrl(input.website)
+            : sanitizeHttpUrl(info.website),
         phone: input.phone !== undefined ? input.phone : info.phone,
         status,
         publishedAt,
@@ -146,7 +164,7 @@ export class TransportsService {
       userAgent: actor.userAgent,
     });
 
-    return updated;
+    return this.sanitizeWebsite(updated);
   }
 
   async remove(id: string, actor: AuditContext) {
@@ -239,6 +257,15 @@ export class TransportsService {
     return updated;
   }
 
+  @Cron('*/5 * * * *')
+  async publishScheduled() {
+    const now = new Date();
+    await this.prisma.transportInfo.updateMany({
+      where: { status: ContentStatus.SCHEDULED, scheduledAt: { lte: now } },
+      data: { status: ContentStatus.PUBLISHED, publishedAt: now, scheduledAt: null },
+    });
+  }
+
   private async ensureExists(id: string) {
     const info = await this.prisma.transportInfo.findUnique({ where: { id } });
     if (!info) {
@@ -279,7 +306,7 @@ export class TransportsService {
     let candidate = slug;
     let counter = 1;
 
-    while (true) {
+    for (;;) {
       const existing = await this.prisma.transportInfo.findUnique({ where: { slug: candidate } });
       if (!existing || existing.id === excludeId) {
         return candidate;

@@ -57,7 +57,7 @@ export default function TransportScolairePage() {
             className="mb-8"
           >
             <Button variant="ghost" size="sm" asChild className="gap-2 text-muted-foreground hover:text-foreground">
-              <Link href="/vie-quotidienne/transports">
+              <Link href="/transports">
                 <ChevronLeft className="h-4 w-4" />
                 Retour aux Transports
               </Link>
@@ -376,10 +376,10 @@ export default function TransportScolairePage() {
                   Voir aussi
                 </h3>
                 <div className="space-y-2">
-                  <Link href="/vie-quotidienne/ecole/college-lycee" className="block text-sm text-muted-foreground hover:text-primary transition-colors">
+                  <Link href="/ecole/college-lycee" className="block text-sm text-muted-foreground hover:text-primary transition-colors">
                     → Collège et lycée
                   </Link>
-                  <Link href="/vie-quotidienne/ecole/ecole-primaire" className="block text-sm text-muted-foreground hover:text-primary transition-colors">
+                  <Link href="/ecole/ecole-primaire" className="block text-sm text-muted-foreground hover:text-primary transition-colors">
                     → École primaire
                   </Link>
                 </div>

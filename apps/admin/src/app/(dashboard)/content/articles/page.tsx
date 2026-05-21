@@ -23,8 +23,11 @@ import {
 import { DataTable } from '@/components/content/data-table';
 import { StatusBadge } from '@/components/content/status-badge';
 import { Badge } from '@/components/ui/badge';
-import { articles, type Article, type ArticleType, type PublicationType } from '@/lib/api';
+import { articles, previewDrafts, type Article, type ArticleType, type PublicationType } from '@/lib/api';
+import { openSecurePreview } from '@/lib/preview';
 import { formatDate } from '@/lib/utils';
+
+const WEB_URL = process.env.NEXT_PUBLIC_WEB_URL || 'http://localhost:3000';
 
 const statusOptions = [
   { label: 'Brouillon', value: 'DRAFT' },
@@ -221,7 +224,42 @@ export default function ArticlesListPage() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => window.open(`/actualites/${article.slug}`, '_blank')}
+                onClick={async () => {
+                  try {
+                    const draft = await previewDrafts.create({
+                      type: 'article',
+                      sourceId: article.id,
+                      data: {
+                        title: article.title,
+                        slug: article.slug,
+                        summary: article.summary ?? null,
+                        content:
+                          typeof article.content === 'string'
+                            ? article.content
+                            : JSON.stringify(article.content ?? ''),
+                        status: article.status,
+                        publishedAt: article.publishedAt ?? null,
+                        createdAt: article.createdAt,
+                        updatedAt: article.updatedAt,
+                        coverMediaId: article.coverMediaId ?? null,
+                        type: article.type,
+                        publicationType: article.publicationType ?? null,
+                        documentMediaId: article.documentMediaId ?? null,
+                        documentNumber: article.documentNumber ?? null,
+                        meetingDate: article.meetingDate ?? null,
+                        publicationYear: article.publicationYear ?? null,
+                        isFlash: article.isFlash ?? false,
+                      },
+                    });
+                    openSecurePreview({
+                      webUrl: WEB_URL,
+                      previewUrlPath: draft.previewUrlPath,
+                    });
+                  } catch (error) {
+                    console.error('Failed to create article preview draft:', error);
+                    alert('Prévisualisation indisponible. Vérifiez votre session admin.');
+                  }
+                }}
               >
                 <Eye className="mr-2 h-4 w-4" />
                 Prévisualiser

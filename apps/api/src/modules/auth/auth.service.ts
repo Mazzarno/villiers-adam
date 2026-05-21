@@ -1,5 +1,6 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { UserRole } from '@prisma/client';
 import { authenticator } from 'otplib';
 import QRCode from 'qrcode';
@@ -10,6 +11,7 @@ import { EmailService } from '../email/email.service';
 import { AuditService } from '../audit/audit.service';
 import { AuditContext } from '../audit/audit.types';
 import {
+  ChangePasswordInput,
   ForgotPasswordInput,
   LoginInput,
   LogoutInput,
@@ -32,11 +34,25 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly configService: ConfigService,
     private readonly emailService: EmailService,
     private readonly auditService: AuditService,
   ) {}
 
   async register(input: RegisterInput, actor?: AuditContext) {
+    const publicRegistrationEnabled =
+      this.configService.get<boolean>('PUBLIC_REGISTRATION_ENABLED') ?? false;
+    if (!publicRegistrationEnabled) {
+      throw new ForbiddenException('Public registration is disabled');
+    }
+
+    const expectedRegistrationToken = this.configService.get<string>('PUBLIC_REGISTRATION_TOKEN');
+    if (expectedRegistrationToken) {
+      if (!input.registrationToken || input.registrationToken !== expectedRegistrationToken) {
+        throw new ForbiddenException('Invalid registration token');
+      }
+    }
+
     const existing = await this.prisma.user.findUnique({ where: { email: input.email } });
     if (existing) {
       throw new BadRequestException('Email already in use');
@@ -48,7 +64,7 @@ export class AuthService {
         passwordHash: await this.hashPassword(input.password),
         firstName: input.firstName,
         lastName: input.lastName,
-        role: (input.role as UserRole | undefined) ?? UserRole.READER,
+        role: UserRole.READER,
       },
     });
 
@@ -74,6 +90,7 @@ export class AuthService {
         email: true,
         firstName: true,
         lastName: true,
+        avatarUrl: true,
         role: true,
         mfaEnabled: true,
         isActive: true,
@@ -86,6 +103,54 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  async changePassword(userId: string, input: ChangePasswordInput, actor?: AuditContext) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, isActive: true, passwordHash: true },
+    });
+
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const isCurrentPasswordValid = await this.verifyPassword(
+      input.currentPassword,
+      user.passwordHash,
+    );
+    if (!isCurrentPasswordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (input.currentPassword === input.newPassword) {
+      throw new BadRequestException('New password must be different from current password');
+    }
+
+    const nextPasswordHash = await this.hashPassword(input.newPassword);
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash: nextPasswordHash },
+      }),
+      this.prisma.session.updateMany({
+        where: { userId: user.id, revokedAt: null },
+        data: { revokedAt: new Date() },
+      }),
+    ]);
+
+    if (actor) {
+      await this.auditService.log({
+        action: 'UPDATE',
+        entity: 'User',
+        entityId: user.id,
+        userId: actor.userId,
+        ip: actor.ip,
+        userAgent: actor.userAgent,
+      });
+    }
+
+    return { success: true };
   }
 
   async login(input: LoginInput, actor?: AuditContext) {
@@ -125,7 +190,7 @@ export class AuthService {
     }
 
     const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
-    if (!user || !user.mfaSecret || !user.mfaEnabled) {
+    if (!user || !user.isActive || !user.mfaSecret || !user.mfaEnabled) {
       throw new UnauthorizedException('MFA not enabled');
     }
 
@@ -151,7 +216,7 @@ export class AuthService {
 
   async enableMfa(userId: string) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) {
+    if (!user || !user.isActive) {
       throw new UnauthorizedException();
     }
 
@@ -169,7 +234,7 @@ export class AuthService {
 
   async confirmMfa(userId: string, input: MfaConfirmInput) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user || !user.mfaSecret) {
+    if (!user || !user.isActive || !user.mfaSecret) {
       throw new BadRequestException('MFA not initialized');
     }
 
@@ -188,7 +253,7 @@ export class AuthService {
 
   async disableMfa(userId: string, input: MfaDisableInput) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user || !user.mfaSecret || !user.mfaEnabled) {
+    if (!user || !user.isActive || !user.mfaSecret || !user.mfaEnabled) {
       throw new BadRequestException('MFA not enabled');
     }
 
@@ -206,6 +271,10 @@ export class AuthService {
   }
 
   async refresh(input: RefreshInput) {
+    if (!input.refreshToken) {
+      throw new UnauthorizedException('Refresh token missing');
+    }
+
     const session = await this.findSession(input.refreshToken);
     if (!session) {
       throw new UnauthorizedException('Invalid refresh token');
@@ -216,7 +285,11 @@ export class AuthService {
     }
 
     const user = await this.prisma.user.findUnique({ where: { id: session.userId } });
-    if (!user) {
+    if (!user || !user.isActive) {
+      await this.prisma.session.update({
+        where: { id: session.id },
+        data: { revokedAt: new Date() },
+      });
       throw new UnauthorizedException('User not found');
     }
 
@@ -229,15 +302,17 @@ export class AuthService {
   }
 
   async logout(input: LogoutInput, actor?: AuditContext) {
-    const session = await this.findSession(input.refreshToken);
-    if (session && !session.revokedAt) {
-      await this.prisma.session.update({
-        where: { id: session.id },
-        data: { revokedAt: new Date() },
-      });
+    if (input.refreshToken) {
+      const session = await this.findSession(input.refreshToken);
+      if (session && !session.revokedAt) {
+        await this.prisma.session.update({
+          where: { id: session.id },
+          data: { revokedAt: new Date() },
+        });
+      }
     }
 
-    if (actor) {
+    if (actor && actor.userId !== 'unknown') {
       await this.auditService.log({
         action: 'LOGOUT',
         entity: 'User',

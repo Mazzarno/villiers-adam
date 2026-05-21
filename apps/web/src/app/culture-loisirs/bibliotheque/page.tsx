@@ -9,13 +9,52 @@ import {
   Clock,
   MapPin,
   Phone,
+  Mail,
+  Globe,
   Users,
   BookMarked,
   Baby,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import api, { type MunicipalService } from '@/lib/api';
+import { formatOpeningHours } from '@/lib/utils';
 
 export default function BibliothequePage() {
+  const [services, setServices] = React.useState<MunicipalService[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [hasError, setHasError] = React.useState(false);
+
+  React.useEffect(() => {
+    const load = async () => {
+      try {
+        const data = await api.municipalServices.list();
+        setServices(
+          data.filter(
+            (s) =>
+              s.category?.toUpperCase() === 'BIBLIOTHEQUE' ||
+              s.category?.toUpperCase() === 'MEDIATHEQUE'
+          )
+        );
+      } catch (error) {
+        console.error('Erreur lors du chargement de la bibliothèque:', error);
+        setServices([]);
+        setHasError(true);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    load();
+  }, []);
+
+  const libraryService = services[0];
+  const hasLibraryData = services.length > 0;
+  const openingHours = formatOpeningHours(libraryService?.openingHours);
+  const addressLine = libraryService?.address;
+  const contactPhone = libraryService?.phone;
+  const contactEmail = libraryService?.email;
+  const contactWebsite = libraryService?.website;
+
   return (
     <div className="min-h-screen">
       {/* Hero section */}
@@ -72,6 +111,17 @@ export default function BibliothequePage() {
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Contenu principal */}
             <div className="lg:col-span-2 space-y-8">
+              {hasError && (
+                <div className="p-4 rounded-organic border border-villiers-gold/25 bg-villiers-gold/5 text-sm text-muted-foreground">
+                  Les informations sont temporairement indisponibles.
+                </div>
+              )}
+              {!hasError && !isLoading && !hasLibraryData && (
+                <div className="p-4 rounded-organic border border-villiers-gold/25 bg-villiers-gold/5 text-sm text-muted-foreground">
+                  Aucune donnee publiee pour le moment.
+                </div>
+              )}
+
               {/* Services */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -156,18 +206,26 @@ export default function BibliothequePage() {
                   Horaires d&apos;ouverture
                 </h3>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Mercredi</span>
-                    <span className="font-mono text-foreground">15h – 18h</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Samedi</span>
-                    <span className="font-mono text-foreground">10h – 12h</span>
-                  </div>
+                  {isLoading ? (
+                    <p className="text-muted-foreground">Chargement des horaires...</p>
+                  ) : openingHours ? (
+                    openingHours.map((row) => (
+                      <div key={row.label} className="flex justify-between gap-4">
+                        <span className="text-muted-foreground">{row.label}</span>
+                        <span className="font-mono text-foreground text-right">{row.value}</span>
+                      </div>
+                    ))
+                  ) : hasError ? (
+                    <p className="text-muted-foreground">Les informations sont temporairement indisponibles.</p>
+                  ) : (
+                    <p className="text-muted-foreground">Aucun horaire publie pour le moment.</p>
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-4">
-                  Fermée pendant les vacances scolaires d&apos;été.
-                </p>
+                {!openingHours && !hasError && (
+                  <p className="text-xs text-muted-foreground mt-4">
+                    Les horaires seront affiches des qu&apos;ils seront publies.
+                  </p>
+                )}
               </motion.div>
 
               {/* Localisation */}
@@ -181,11 +239,19 @@ export default function BibliothequePage() {
                   <MapPin className="h-5 w-5 text-villiers-gold" />
                   Localisation
                 </h3>
-                <p className="text-sm text-muted-foreground">
-                  Mairie de Villiers-Adam<br />
-                  1, Grande Rue<br />
-                  95840 Villiers-Adam
-                </p>
+                {addressLine ? (
+                  <p className="text-sm text-muted-foreground">
+                    {addressLine}
+                  </p>
+                ) : hasError ? (
+                  <p className="text-sm text-muted-foreground">
+                    Les informations sont temporairement indisponibles.
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Aucune adresse publiee pour le moment.
+                  </p>
+                )}
               </motion.div>
 
               {/* Contact */}
@@ -198,10 +264,38 @@ export default function BibliothequePage() {
                 <h3 className="font-heading text-lg font-semibold text-foreground mb-4">
                   Contact
                 </h3>
-                <a href="tel:0134699287" className="flex items-center gap-3 text-sm hover:text-primary transition-colors group">
-                  <Phone className="h-4 w-4 text-villiers-gold" />
-                  <span className="font-mono">01 34 69 92 87</span>
-                </a>
+                {contactPhone ? (
+                  <a href={`tel:${contactPhone.replace(/\s/g, '')}`} className="flex items-center gap-3 text-sm hover:text-primary transition-colors group">
+                    <Phone className="h-4 w-4 text-villiers-gold" />
+                    <span className="font-mono">{contactPhone}</span>
+                  </a>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {hasError
+                      ? 'Les informations sont temporairement indisponibles.'
+                      : 'Aucun telephone publie pour le moment.'}
+                  </p>
+                )}
+                {contactEmail && (
+                  <a
+                    href={`mailto:${contactEmail}`}
+                    className="flex items-center gap-3 text-sm hover:text-primary transition-colors group mt-3"
+                  >
+                    <Mail className="h-4 w-4 text-villiers-gold" />
+                    <span>{contactEmail}</span>
+                  </a>
+                )}
+                {contactWebsite && (
+                  <a
+                    href={contactWebsite}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 text-sm hover:text-primary transition-colors group mt-3"
+                  >
+                    <Globe className="h-4 w-4 text-villiers-gold" />
+                    <span>Site web</span>
+                  </a>
+                )}
               </motion.div>
             </div>
           </div>

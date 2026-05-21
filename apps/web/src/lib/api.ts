@@ -22,7 +22,14 @@ async function fetchAPI<T>(endpoint: string, options: FetchOptions = {}): Promis
     }
   }
 
+  const hasExplicitCache = fetchOptions.cache !== undefined;
+  const hasExplicitRevalidate =
+    typeof fetchOptions.next === 'object' &&
+    fetchOptions.next !== null &&
+    'revalidate' in fetchOptions.next;
+
   const response = await fetch(url, {
+    ...(hasExplicitCache || hasExplicitRevalidate ? {} : { cache: 'no-store' }),
     ...fetchOptions,
     headers: {
       'Content-Type': 'application/json',
@@ -105,16 +112,6 @@ type ApiDirectoryEntry = {
   latitude?: number | null;
   longitude?: number | null;
   coverMedia?: ApiMedia | null;
-};
-
-type ApiRoom = {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string | null;
-  location?: string | null;
-  capacity?: number | null;
-  isActive: boolean;
 };
 
 type ApiCouncilMember = {
@@ -204,21 +201,13 @@ const normalizeContent = (value?: unknown) => {
   }
 };
 
-const normalizeBlocks = (value?: unknown) => {
-  if (!value) return [];
-  if (Array.isArray(value)) return value;
-  if (typeof value === 'string') {
-    try {
-      const parsed = JSON.parse(value);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }
-  return [];
+const normalizeFlashMessage = (value?: string | null) => {
+  if (typeof value !== 'string') return undefined;
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  return normalized.length > 0 ? normalized : undefined;
 };
 
-const resolveMediaUrl = (url?: string) => {
+const resolveMediaUrl = (url?: string | null) => {
   if (!url) return undefined;
   if (url.startsWith('http://') || url.startsWith('https://')) return url;
   return `${API_URL}${url}`;
@@ -233,27 +222,6 @@ const formatDirectoryAddress = (entry: ApiDirectoryEntry) => {
   if (entry.country) parts.push(entry.country);
   return parts.length > 0 ? parts.join(', ') : undefined;
 };
-
-const mapPage = (page: ApiPage): Page => ({
-  id: page.id,
-  title: page.title,
-  slug: page.slug,
-  content: normalizeContent(page.content),
-  blocks: normalizeBlocks(page.blocks),
-  menuTitle: page.menuTitle ?? undefined,
-  showInMenu: page.showInMenu ?? undefined,
-  menuOrder: page.menuOrder ?? undefined,
-  parentId: page.parentId ?? undefined,
-  template: page.template ?? undefined,
-  metaTitle: page.metaTitle ?? undefined,
-  metaDescription: page.metaDescription ?? undefined,
-  excerpt: page.summary ?? undefined,
-  featuredImage: resolveMediaUrl(page.coverMedia?.url),
-  status: mapContentStatus(page.status),
-  publishedAt: page.publishedAt ?? undefined,
-  createdAt: page.createdAt ?? page.publishedAt ?? new Date().toISOString(),
-  updatedAt: page.updatedAt ?? page.publishedAt ?? new Date().toISOString(),
-});
 
 const mapArticle = (article: ApiArticle): Article => ({
   id: article.id,
@@ -273,6 +241,8 @@ const mapArticle = (article: ApiArticle): Article => ({
   publishedAt: article.publishedAt ?? undefined,
   createdAt: article.createdAt ?? article.publishedAt ?? new Date().toISOString(),
   updatedAt: article.updatedAt ?? article.publishedAt ?? new Date().toISOString(),
+  metaTitle: article.metaTitle ?? undefined,
+  metaDescription: article.metaDescription ?? undefined,
   tags: [],
 });
 
@@ -312,16 +282,6 @@ const mapDirectoryEntry = (entry: ApiDirectoryEntry): DirectoryEntry => ({
     entry.latitude && entry.longitude
       ? { lat: entry.latitude, lng: entry.longitude }
       : undefined,
-});
-
-const mapRoom = (room: ApiRoom): Room => ({
-  id: room.id,
-  name: room.name,
-  slug: room.slug,
-  description: room.description ?? undefined,
-  location: room.location ?? undefined,
-  capacity: room.capacity ?? undefined,
-  isActive: room.isActive,
 });
 
 const mapCouncilMember = (member: ApiCouncilMember): CouncilMember => ({
@@ -438,6 +398,8 @@ export interface Article {
   isFlash?: boolean;
   category?: Category;
   categoryId?: string;
+  metaTitle?: string;
+  metaDescription?: string;
   tags?: string[];
   author?: User;
   authorId?: string;
@@ -496,16 +458,6 @@ export interface DirectoryEntry {
   openingHours?: unknown;
   featuredImage?: string;
   coordinates?: { lat: number; lng: number };
-}
-
-export interface Room {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  location?: string;
-  capacity?: number;
-  isActive: boolean;
 }
 
 export interface CouncilMember {
@@ -601,19 +553,6 @@ export interface SiteConfig {
 
 // API Client
 export const api = {
-  // Pages
-  pages: {
-    list: async () => {
-      const data = await fetchAPI<ApiPage[]>('/pages');
-      return data.map(mapPage);
-    },
-    get: async (slug: string) => {
-      const data = await fetchAPI<ApiPage>(`/pages/${slug}`);
-      return mapPage(data);
-    },
-    menu: async () => fetchAPI<PageMenuItem[]>('/pages/menu'),
-  },
-
   // Articles
   articles: {
     list: async (params?: { type?: ArticleType; publicationType?: PublicationType; isFlash?: boolean }) => {
@@ -628,11 +567,6 @@ export const api = {
       const data = await fetchAPI<ApiArticle[]>('/articles', { params: { type: 'ACTUALITE' } });
       return data.map(mapArticle).slice(0, limit);
     },
-  },
-
-  // Categories
-  categories: {
-    list: () => fetchAPI<Category[]>('/categories'),
   },
 
   // Events
@@ -658,12 +592,15 @@ export const api = {
 
   // Flash info
   flashInfo: {
-    active: async () => {
+    active: async (): Promise<FlashInfo[]> => {
       const data = await fetchAPI<ApiArticle[]>('/articles', { params: { isFlash: true } });
       return data.map((article) => ({
         id: article.id,
-        message: article.summary ?? article.title,
-        type: 'info',
+        message:
+          normalizeFlashMessage(article.title) ??
+          normalizeFlashMessage(article.summary) ??
+          'Flash info',
+        type: 'info' as const,
         link: `/actualites/${article.slug}`,
         startDate: article.publishedAt ?? article.createdAt ?? new Date().toISOString(),
         endDate: undefined,
@@ -678,7 +615,6 @@ export const api = {
       const data = await fetchAPI<ApiDirectoryEntry[]>('/annuaire', { params });
       return data.map(mapDirectoryEntry);
     },
-    categories: async () => [],
   },
 
   // Council
@@ -686,18 +622,6 @@ export const api = {
     list: async (params?: { role?: string }) => {
       const data = await fetchAPI<ApiCouncilMember[]>('/council', { params });
       return data.map(mapCouncilMember);
-    },
-  },
-
-  // Rooms
-  rooms: {
-    list: async () => {
-      const data = await fetchAPI<ApiRoom[]>('/rooms');
-      return data.map(mapRoom);
-    },
-    get: async (slug: string) => {
-      const data = await fetchAPI<ApiRoom>(`/rooms/${slug}`);
-      return mapRoom(data);
     },
   },
 
@@ -729,65 +653,17 @@ export const api = {
     },
   },
 
-  // Search
-  search: {
-    global: (query: string, params?: { type?: string; page?: number }) =>
-      fetchAPI<{
-        articles: Article[];
-        pages: Page[];
-        events: Event[];
-        directory: DirectoryEntry[];
-        total: number;
-      }>('/search', { params: { q: query, ...params } }),
-  },
-
-  // Config
-  config: {
-    get: () => fetchAPI<SiteConfig>('/config'),
-  },
-
-  // Forms
-  forms: {
-    submit: (data: {
-      type: 'CONTACT' | 'SIGNALEMENT';
-      subject?: string;
-      message: string;
-      name?: string;
-      email?: string;
-      phone?: string;
-      data?: Record<string, unknown> | null;
-      website?: string;
-      captchaToken?: string | null;
-    }) =>
-      fetchAPI<{ success: boolean; id: string }>('/forms', {
+  // Newsletter
+  newsletter: {
+    topics: async () =>
+      fetchAPI<{ id: string; name: string; slug: string; description?: string }[]>('/newsletters/topics'),
+    subscribe: async (data: { email: string; topicIds?: string[]; captchaToken?: string | null }) =>
+      fetchAPI<{ success: boolean }>('/newsletters/subscribe', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
-  },
-
-  // Reservations
-  reservations: {
-    checkAvailability: (data: { roomId: string; startsAt: string; endsAt: string }) =>
-      fetchAPI<{ available: boolean; conflictingReservation?: { id: string; startsAt: string; endsAt: string } | null }>(
-        '/reservations/check-availability',
-        { method: 'POST', body: JSON.stringify(data) }
-      ),
-    slots: (roomId: string, date: string) =>
-      fetchAPI<{ date: string; reservations: { startsAt: string; endsAt: string }[] }>(
-        `/reservations/slots/${roomId}`,
-        { params: { date } }
-      ),
-    create: (data: {
-      roomId: string;
-      startsAt: string;
-      endsAt: string;
-      requesterName: string;
-      requesterEmail: string;
-      requesterPhone?: string;
-      notes?: string;
-      captchaToken?: string | null;
-    }) =>
-      fetchAPI<{ id: string } & Record<string, unknown>>('/reservations', {
+    unsubscribe: async (data: { email: string; token?: string }) =>
+      fetchAPI<{ success: boolean }>('/newsletters/unsubscribe', {
         method: 'POST',
         body: JSON.stringify(data),
       }),
@@ -795,7 +671,14 @@ export const api = {
 
   // Contact
   contact: {
-    send: (data: { name: string; email: string; subject: string; message: string }) =>
+    send: (data: {
+      name: string;
+      email: string;
+      subject?: string;
+      message: string;
+      website?: string;
+      captchaToken?: string | null;
+    }) =>
       fetchAPI<{ success: boolean }>('/contact', {
         method: 'POST',
         body: JSON.stringify(data),
@@ -809,9 +692,10 @@ export const api = {
         siteName: string;
         branding: unknown;
         accessibility: unknown;
-        contactEmail: string;
-        contactPhone: string;
+        contactEmail: string | null;
+        contactPhone: string | null;
         address: unknown;
+        municipalityProfile: unknown;
       }>('/settings/public', {
         next: { revalidate: 3600 }, // Cache 1 heure
       }),

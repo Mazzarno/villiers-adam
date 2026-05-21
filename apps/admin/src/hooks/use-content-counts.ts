@@ -1,5 +1,7 @@
 import * as React from 'react';
 
+import { annuaire, articles, events } from '@/lib/api';
+
 type ContentCounts = {
   draftArticles: number;
   scheduledArticles: number;
@@ -22,37 +24,19 @@ export function useContentCounts() {
   React.useEffect(() => {
     const loadCounts = async () => {
       try {
-        const token = localStorage.getItem('accessToken');
-        if (!token) return;
-
-        const responses = await Promise.all([
-          // Articles
-          fetch('/api/articles?status=DRAFT', {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch('/api/articles?status=SCHEDULED', {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          // Events
-          fetch('/api/events?status=DRAFT', {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          fetch('/api/events?status=SCHEDULED', {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-          // Directory
-          fetch('/api/annuaire?status=DRAFT', {
-            headers: { Authorization: `Bearer ${token}` },
-          }),
-        ]);
-
         const [
           draftArticlesData,
           scheduledArticlesData,
           draftEventsData,
           scheduledEventsData,
           draftDirectoryData,
-        ] = await Promise.all(responses.map((r) => (r.ok ? r.json() : [])));
+        ] = await Promise.all([
+          articles.list({ status: 'DRAFT' }),
+          articles.list({ status: 'SCHEDULED' }),
+          events.list({ status: 'DRAFT' }),
+          events.list({ status: 'SCHEDULED' }),
+          annuaire.list({ status: 'DRAFT' }),
+        ]);
 
         setCounts({
           draftArticles: Array.isArray(draftArticlesData) ? draftArticlesData.length : 0,

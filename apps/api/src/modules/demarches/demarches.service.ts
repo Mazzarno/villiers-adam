@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { ContentStatus, Prisma } from '@prisma/client';
 import { slugify } from '@villiers-adam/shared';
 
+import { sanitizeHttpUrl } from '../../common/security/url-sanitizer';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { VersionService } from '../audit/version.service';
@@ -23,20 +24,30 @@ export class DemarchesService {
     private readonly searchService: SearchService,
   ) {}
 
+  private sanitizeExternalUrl<T extends { externalUrl: string | null }>(procedure: T): T {
+    return {
+      ...procedure,
+      externalUrl: sanitizeHttpUrl(procedure.externalUrl),
+    };
+  }
+
   async listPublished(search?: string) {
+    const now = new Date();
     const where: Prisma.ProcedureWhereInput = {
       status: ContentStatus.PUBLISHED,
-      publishedAt: { lte: new Date() },
+      OR: [{ publishedAt: { lte: now } }, { publishedAt: null }],
     };
 
     if (search) {
       where.title = { contains: search, mode: 'insensitive' };
     }
 
-    return this.prisma.procedure.findMany({
+    const procedures = await this.prisma.procedure.findMany({
       where,
       orderBy: { title: 'asc' },
+      include: { coverMedia: true },
     });
+    return procedures.map((procedure) => this.sanitizeExternalUrl(procedure));
   }
 
   async listAll(params: { status?: ContentStatus; search?: string }) {
@@ -48,18 +59,34 @@ export class DemarchesService {
       where.title = { contains: params.search, mode: 'insensitive' };
     }
 
-    return this.prisma.procedure.findMany({
+    const procedures = await this.prisma.procedure.findMany({
       where,
       orderBy: { updatedAt: 'desc' },
+      include: { coverMedia: true },
     });
+    return procedures.map((procedure) => this.sanitizeExternalUrl(procedure));
+  }
+
+  async getById(id: string) {
+    const procedure = await this.prisma.procedure.findUnique({
+      where: { id },
+      include: { coverMedia: true },
+    });
+    if (!procedure) {
+      throw new NotFoundException('Procedure not found');
+    }
+    return this.sanitizeExternalUrl(procedure);
   }
 
   async getBySlug(slug: string) {
-    const procedure = await this.prisma.procedure.findUnique({ where: { slug } });
+    const procedure = await this.prisma.procedure.findUnique({
+      where: { slug },
+      include: { coverMedia: true },
+    });
     if (!procedure || procedure.status !== ContentStatus.PUBLISHED) {
       throw new NotFoundException('Procedure not found');
     }
-    return procedure;
+    return this.sanitizeExternalUrl(procedure);
   }
 
   async create(input: DemarchesCreateInput, actor: AuditContext) {
@@ -73,7 +100,7 @@ export class DemarchesService {
         summary: input.summary ?? null,
         content: input.content,
         steps: input.steps ?? null,
-        externalUrl: input.externalUrl ?? null,
+        externalUrl: sanitizeHttpUrl(input.externalUrl),
         status,
         publishedAt,
         scheduledAt,
@@ -95,7 +122,7 @@ export class DemarchesService {
 
     await this.searchService.upsertProcedure(procedure);
 
-    return procedure;
+    return this.sanitizeExternalUrl(procedure);
   }
 
   async update(id: string, input: DemarchesUpdateInput, actor: AuditContext) {
@@ -115,7 +142,10 @@ export class DemarchesService {
         summary: input.summary !== undefined ? input.summary : procedure.summary,
         content: input.content !== undefined ? input.content : procedure.content,
         steps: input.steps !== undefined ? input.steps : procedure.steps,
-        externalUrl: input.externalUrl !== undefined ? input.externalUrl : procedure.externalUrl,
+        externalUrl:
+          input.externalUrl !== undefined
+            ? sanitizeHttpUrl(input.externalUrl)
+            : sanitizeHttpUrl(procedure.externalUrl),
         status,
         publishedAt,
         scheduledAt,
@@ -137,7 +167,7 @@ export class DemarchesService {
 
     await this.searchService.upsertProcedure(updated);
 
-    return updated;
+    return this.sanitizeExternalUrl(updated);
   }
 
   async remove(id: string, actor: AuditContext) {
@@ -241,10 +271,21 @@ export class DemarchesService {
   @Cron('*/5 * * * *')
   async publishScheduled() {
     const now = new Date();
-    await this.prisma.procedure.updateMany({
+    const ready = await this.prisma.procedure.findMany({
       where: { status: ContentStatus.SCHEDULED, scheduledAt: { lte: now } },
+      select: { id: true },
+    });
+
+    if (ready.length === 0) {
+      return;
+    }
+
+    await this.prisma.procedure.updateMany({
+      where: { id: { in: ready.map((entry) => entry.id) } },
       data: { status: ContentStatus.PUBLISHED, publishedAt: now, scheduledAt: null },
     });
+
+    await Promise.all(ready.map((entry) => this.searchService.upsertProcedure(entry)));
   }
 
   private async ensureExists(id: string) {
@@ -287,7 +328,7 @@ export class DemarchesService {
     let candidate = slug;
     let counter = 1;
 
-    while (true) {
+    for (;;) {
       const existing = await this.prisma.procedure.findUnique({ where: { slug: candidate } });
       if (!existing || existing.id === excludeId) {
         return candidate;

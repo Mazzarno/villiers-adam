@@ -5,7 +5,12 @@ import { randomUUID } from 'node:crypto';
 
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { MinioService } from './minio.service';
-import { MediaConfirmInput, MediaPresignInput } from './dto/media.schemas';
+import {
+  ALLOWED_MEDIA_MIME_TYPES,
+  MAX_MEDIA_SIZE_BYTES,
+  MediaConfirmInput,
+  MediaPresignInput,
+} from './dto/media.schemas';
 
 @Injectable()
 export class MediaService {
@@ -15,6 +20,11 @@ export class MediaService {
   ) {}
 
   async presignUpload(input: MediaPresignInput) {
+    this.assertAllowedMimeType(input.mimeType);
+    if (input.size > MAX_MEDIA_SIZE_BYTES) {
+      throw new BadRequestException('File exceeds maximum allowed size');
+    }
+
     const storageKey = this.buildStorageKey(input.filename);
     const uploadUrl = await this.minio.presignedPutObject(storageKey);
 
@@ -26,6 +36,17 @@ export class MediaService {
   }
 
   async confirmUpload(input: MediaConfirmInput, userId: string) {
+    this.assertAllowedMimeType(input.mimeType);
+    if (input.size > MAX_MEDIA_SIZE_BYTES) {
+      throw new BadRequestException('File exceeds maximum allowed size');
+    }
+
+    const fileExtension = path.extname(input.filename).toLowerCase();
+    const keyExtension = path.extname(input.storageKey).toLowerCase();
+    if (!fileExtension || fileExtension !== keyExtension) {
+      throw new BadRequestException('File extension mismatch');
+    }
+
     const type = this.mapMediaType(input.mimeType);
     const stat = await this.minio.statObject(input.storageKey).catch(() => null);
     if (!stat) {
@@ -34,6 +55,19 @@ export class MediaService {
 
     if (stat.size !== input.size) {
       throw new BadRequestException('Uploaded file size mismatch');
+    }
+
+    if (stat.size > MAX_MEDIA_SIZE_BYTES) {
+      throw new BadRequestException('Uploaded file is too large');
+    }
+
+    const uploadedContentType = (
+      stat as {
+        metaData?: Record<string, string | undefined>;
+      }
+    ).metaData?.['content-type'];
+    if (uploadedContentType && uploadedContentType !== input.mimeType) {
+      throw new BadRequestException('Uploaded file type mismatch');
     }
 
     const url = this.buildPublicUrl(input.storageKey);
@@ -101,10 +135,21 @@ export class MediaService {
     return MediaType.DOCUMENT;
   }
 
+  private assertAllowedMimeType(mimeType: string) {
+    if (!ALLOWED_MEDIA_MIME_TYPES.includes(mimeType as (typeof ALLOWED_MEDIA_MIME_TYPES)[number])) {
+      throw new BadRequestException('Unsupported media type');
+    }
+  }
+
   private buildStorageKey(filename: string) {
-    const ext = path.extname(filename);
-    const base = filename.replace(ext, '').trim().replace(/\s+/g, '-').toLowerCase();
-    const safeBase = base.replace(/[^a-z0-9-]/g, '');
+    const parsed = path.parse(filename);
+    const ext = parsed.ext.toLowerCase().replace(/[^a-z0-9.]/g, '');
+    if (!ext) {
+      throw new BadRequestException('Missing or invalid file extension');
+    }
+
+    const base = parsed.name.trim().replace(/\s+/g, '-').toLowerCase();
+    const safeBase = base.replace(/[^a-z0-9-]/g, '').slice(0, 120) || 'file';
     const now = new Date();
     const prefix = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}`;
     return `${prefix}/${randomUUID()}-${safeBase}${ext}`;

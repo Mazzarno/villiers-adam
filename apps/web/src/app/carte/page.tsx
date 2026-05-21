@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
-import dynamic from 'next/dynamic';
-import { MapPin, Building2, GraduationCap, Heart, Store, Dumbbell } from 'lucide-react';
+import { MapPin, Building2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { InteractiveMapClient } from '@/components/map/interactive-map-client';
 import { cn } from '@/lib/utils';
 
 export const metadata: Metadata = {
@@ -9,77 +9,21 @@ export const metadata: Metadata = {
   description: 'Carte interactive de Villiers-Adam : mairie, écoles, commerces et services.',
 };
 
-// Chargement dynamique de la carte (client-side uniquement)
-const InteractiveMap = dynamic(
-  () => import('@/components/map/interactive-map').then((mod) => mod.InteractiveMap),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="aspect-[16/9] bg-muted rounded-lg flex items-center justify-center">
-        <div className="text-center">
-          <MapPin className="h-8 w-8 text-muted-foreground animate-pulse mx-auto mb-2" />
-          <p className="text-sm text-muted-foreground">Chargement de la carte...</p>
-        </div>
-      </div>
-    ),
-  }
-);
-
-// Points d'intérêt de démonstration
+// Points d'interet references
 const markers = [
   {
     id: '1',
-    lat: 49.0833,
-    lng: 2.3833,
+    lat: 49.064213,
+    lng: 2.235307,
     title: 'Mairie de Villiers-Adam',
-    description: '1 Place de la Mairie',
+    description: 'Place Victor-Hugo',
     category: 'Administration',
     icon: 'mairie' as const,
-  },
-  {
-    id: '2',
-    lat: 49.0845,
-    lng: 2.3850,
-    title: 'École élémentaire',
-    description: '3 rue de l\'École',
-    category: 'Éducation',
-    icon: 'school' as const,
-  },
-  {
-    id: '3',
-    lat: 49.0825,
-    lng: 2.3820,
-    title: 'Cabinet médical',
-    description: '12 rue de l\'Église',
-    category: 'Santé',
-    icon: 'health' as const,
-  },
-  {
-    id: '4',
-    lat: 49.0838,
-    lng: 2.3815,
-    title: 'Boulangerie du Village',
-    description: '5 rue de la République',
-    category: 'Commerce',
-    icon: 'shop' as const,
-  },
-  {
-    id: '5',
-    lat: 49.0820,
-    lng: 2.3860,
-    title: 'Terrain de sport',
-    description: 'Complexe sportif municipal',
-    category: 'Sport',
-    icon: 'sport' as const,
   },
 ];
 
 const categories = [
   { id: 'mairie', label: 'Administration', icon: Building2, color: 'bg-[#1e3a5f]' },
-  { id: 'school', label: 'Éducation', icon: GraduationCap, color: 'bg-[#7c3aed]' },
-  { id: 'health', label: 'Santé', icon: Heart, color: 'bg-[#dc2626]' },
-  { id: 'shop', label: 'Commerces', icon: Store, color: 'bg-[#f59e0b]' },
-  { id: 'sport', label: 'Sports', icon: Dumbbell, color: 'bg-[#22c55e]' },
 ];
 
 export default function CartePage() {
@@ -92,7 +36,7 @@ export default function CartePage() {
             Carte interactive
           </h1>
           <p className="text-lg text-primary-foreground/80 max-w-2xl">
-            Découvrez les lieux importants de Villiers-Adam : mairie, écoles, commerces, services de santé et équipements sportifs.
+            Localisation de la mairie de Villiers-Adam et des points d&apos;interet publies par la commune.
           </p>
         </div>
       </section>
@@ -101,11 +45,11 @@ export default function CartePage() {
       <section className="container py-8">
         <div className="grid lg:grid-cols-4 gap-6">
           {/* Map */}
-          <div className="lg:col-span-3">
-            <Card className="overflow-hidden">
+          <div className="lg:col-span-3 min-w-0">
+            <Card className="overflow-hidden min-w-0">
               <CardContent className="p-0">
-                <InteractiveMap
-                  center={{ lat: 49.0833, lng: 2.3833 }}
+                <InteractiveMapClient
+                  center={{ lat: 49.064213, lng: 2.235307 }}
                   zoom={15}
                   markers={markers}
                   className="aspect-[16/9] lg:aspect-auto lg:h-[600px]"
@@ -115,11 +59,11 @@ export default function CartePage() {
           </div>
 
           {/* Sidebar - Legend and list */}
-          <div className="space-y-6">
+          <div className="space-y-6 min-w-0">
             {/* Legend */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Légende</CardTitle>
+                <CardTitle className="text-lg break-words">Légende</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {categories.map((category) => {
@@ -139,7 +83,7 @@ export default function CartePage() {
             {/* Points list */}
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">Points d&apos;intérêt</CardTitle>
+                <CardTitle className="text-lg break-words">Points d&apos;intérêt</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {markers.map((marker) => (
@@ -149,9 +93,9 @@ export default function CartePage() {
                   >
                     <MapPin className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                     <div className="min-w-0">
-                      <p className="font-medium text-sm truncate">{marker.title}</p>
+                      <p className="font-medium text-sm break-words leading-snug">{marker.title}</p>
                       {marker.description && (
-                        <p className="text-xs text-muted-foreground truncate">
+                        <p className="text-xs text-muted-foreground break-words leading-snug">
                           {marker.description}
                         </p>
                       )}

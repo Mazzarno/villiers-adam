@@ -49,3 +49,60 @@ export function getInitials(name: string): string {
     .toUpperCase()
     .slice(0, 2);
 }
+
+/**
+ * Formate les horaires d'ouverture provenant de l'API.
+ * Supporte : string, string[], Record<string, string>, et le format structuré
+ * { jour: { matin: { ouverture, fermeture }, aprem: { ouverture, fermeture } } }
+ */
+export function formatOpeningHours(hours: unknown): { label: string; value: string }[] | null {
+  if (!hours) return null;
+
+  if (typeof hours === 'string') {
+    return [{ label: 'Horaires', value: hours }];
+  }
+
+  if (Array.isArray(hours)) {
+    if (hours.length === 0) return null;
+    if (typeof hours[0] === 'string') {
+      return hours.map((value, index) => ({ label: `Jour ${index + 1}`, value: String(value) }));
+    }
+    // Array of { day, morning, afternoon } format (SiteConfig)
+    return hours.map((entry) => {
+      const parts: string[] = [];
+      if (entry.morning) parts.push(entry.morning);
+      if (entry.afternoon) parts.push(entry.afternoon);
+      return { label: entry.day || `Jour`, value: parts.join(' / ') || 'Fermé' };
+    });
+  }
+
+  if (typeof hours === 'object' && hours !== null) {
+    const entries = Object.entries(hours as Record<string, unknown>);
+    if (entries.length === 0) return null;
+
+    return entries.map(([day, value]) => {
+      if (typeof value === 'string') {
+        return { label: day, value };
+      }
+      // Structured format: { matin: { ouverture, fermeture }, aprem: { ouverture, fermeture } }
+      if (value && typeof value === 'object') {
+        const slot = value as { matin?: { ouverture: string; fermeture: string } | null; aprem?: { ouverture: string; fermeture: string } | null; note?: string };
+        if (slot.matin === undefined && slot.aprem === undefined) {
+          return { label: day, value: String(value) };
+        }
+        const parts: string[] = [];
+        if (slot.matin) parts.push(`${slot.matin.ouverture}-${slot.matin.fermeture}`);
+        if (slot.aprem) parts.push(`${slot.aprem.ouverture}-${slot.aprem.fermeture}`);
+        let result = parts.join(' / ') || 'Fermé';
+        if (slot.note) result += ` (${slot.note})`;
+        return { label: day.charAt(0).toUpperCase() + day.slice(1), value: result };
+      }
+      if (value === null) {
+        return { label: day.charAt(0).toUpperCase() + day.slice(1), value: 'Fermé' };
+      }
+      return { label: day, value: String(value) };
+    });
+  }
+
+  return null;
+}

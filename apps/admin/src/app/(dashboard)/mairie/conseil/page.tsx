@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useSearchParams } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
 import { MoreHorizontal, Plus, ArrowUpDown, Pencil, Trash2, Archive, Send, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -34,7 +35,7 @@ import { DataTable } from '@/components/content/data-table';
 import { StatusBadge } from '@/components/content/status-badge';
 import { Badge } from '@/components/ui/badge';
 import { MediaPicker } from '@/components/media/media-picker';
-import { council, type CouncilMember, type CouncilMemberRole, type Media } from '@/lib/api';
+import { council, type CouncilMember, type CouncilMemberRole, type Media, type ContentStatus } from '@/lib/api';
 import { formatDate } from '@/lib/utils';
 
 const statusOptions = [
@@ -66,7 +67,7 @@ type FormData = {
   email: string;
   phone: string;
   order: number;
-  status: string;
+  status: ContentStatus;
   photoMediaId?: string;
 };
 
@@ -82,12 +83,14 @@ const defaultFormData: FormData = {
 };
 
 export default function ConseilPage() {
+  const searchParams = useSearchParams();
   const [data, setData] = React.useState<CouncilMember[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [formData, setFormData] = React.useState<FormData>(defaultFormData);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [formError, setFormError] = React.useState('');
   const [photoMedia, setPhotoMedia] = React.useState<Media | null>(null);
   const [showMediaPicker, setShowMediaPicker] = React.useState(false);
 
@@ -110,6 +113,7 @@ export default function ConseilPage() {
     setEditingId(null);
     setFormData(defaultFormData);
     setPhotoMedia(null);
+    setFormError('');
     setDialogOpen(true);
   };
 
@@ -127,12 +131,19 @@ export default function ConseilPage() {
       photoMediaId: item.photoMediaId || undefined,
     });
     setPhotoMedia(item.photoMedia ?? null);
+    setFormError('');
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      if (!formData.name.trim()) {
+        setFormError('Le nom est obligatoire.');
+        setIsSaving(false);
+        return;
+      }
+
       const payload = {
         ...formData,
         order: Number.isNaN(formData.order) ? 0 : formData.order,
@@ -147,6 +158,11 @@ export default function ConseilPage() {
       setDialogOpen(false);
       loadData();
     } catch (error) {
+      const message =
+        (error as { data?: { message?: string } })?.data?.message ||
+        (error as Error).message ||
+        'Impossible d\'enregistrer l\'élu.';
+      setFormError(message);
       console.error('Failed to save:', error);
     } finally {
       setIsSaving(false);
@@ -274,6 +290,16 @@ export default function ConseilPage() {
     },
   ];
 
+  const searchTerm = (searchParams.get('search') || '').trim().toLowerCase();
+  const filteredData = React.useMemo(() => {
+    if (!searchTerm) return data;
+    return data.filter((item) =>
+      [item.name, item.roleTitle, item.delegations]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(searchTerm)),
+    );
+  }, [data, searchTerm]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -287,7 +313,7 @@ export default function ConseilPage() {
         </Button>
       </div>
 
-      <DataTable columns={columns} data={data} searchKey="name" isLoading={isLoading} />
+      <DataTable columns={columns} data={filteredData} searchKey="name" isLoading={isLoading} />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
@@ -297,6 +323,11 @@ export default function ConseilPage() {
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
+            {formError && (
+              <div className="rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {formError}
+              </div>
+            )}
             <div className="grid gap-2">
               <Label>Nom complet</Label>
               <Input
@@ -377,7 +408,7 @@ export default function ConseilPage() {
                 <Label>Statut</Label>
                 <Select
                   value={formData.status}
-                  onValueChange={(value) => setFormData({ ...formData, status: value })}
+                  onValueChange={(value) => setFormData({ ...formData, status: value as ContentStatus })}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -424,6 +455,7 @@ export default function ConseilPage() {
         onSelect={(media) => {
           setPhotoMedia(media);
           setFormData((prev) => ({ ...prev, photoMediaId: media.id }));
+          setShowMediaPicker(false);
         }}
         accept={['image/*']}
       />

@@ -1,9 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { mairieConfig } from '@villiers-adam/shared';
 import { Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { SettingsUpdateInput } from './dto/settings.schemas';
+
+const DEFAULT_ACCESSIBILITY = {
+  seniorMode: true,
+  dyslexicMode: false,
+  nightMode: true,
+};
 
 @Injectable()
 export class SettingsService {
@@ -18,33 +23,59 @@ export class SettingsService {
     return this.prisma.settings.create({
       data: {
         id: 'default',
-        siteName: mairieConfig.commune.nomComplet,
-        branding: mairieConfig.branding,
-        accessibility: {
-          seniorMode: true,
-          dyslexicMode: false,
-          nightMode: true,
-        },
-        contactEmail: mairieConfig.mairie.contact.email,
-        contactPhone: mairieConfig.mairie.contact.telephone,
-        address: mairieConfig.mairie.adresse as Prisma.InputJsonValue,
+        siteName: 'Mairie',
+        branding: {} as Prisma.InputJsonValue,
+        accessibility: DEFAULT_ACCESSIBILITY as Prisma.InputJsonValue,
+        contactEmail: null,
+        contactPhone: null,
+        address: Prisma.JsonNull,
+        municipalityProfile: Prisma.JsonNull,
       },
     });
   }
 
   async update(input: SettingsUpdateInput) {
-    const existing = await this.get();
+    await this.get();
+
+    const data: Prisma.SettingsUpdateInput = {};
+
+    if (input.siteName !== undefined) {
+      data.siteName = input.siteName;
+    }
+
+    if (input.branding !== undefined) {
+      data.branding = input.branding as Prisma.InputJsonValue;
+    }
+
+    if (input.accessibility !== undefined) {
+      data.accessibility = input.accessibility as Prisma.InputJsonValue;
+    }
+
+    if (input.contactEmail !== undefined) {
+      data.contactEmail = input.contactEmail;
+    }
+
+    if (input.contactPhone !== undefined) {
+      data.contactPhone = input.contactPhone;
+    }
+
+    if (input.address !== undefined) {
+      data.address =
+        input.address === null
+          ? Prisma.JsonNull
+          : (input.address as Prisma.InputJsonValue);
+    }
+
+    if (input.municipalityProfile !== undefined) {
+      data.municipalityProfile =
+        input.municipalityProfile === null
+          ? Prisma.JsonNull
+          : (input.municipalityProfile as Prisma.InputJsonValue);
+    }
 
     return this.prisma.settings.update({
       where: { id: 'default' },
-      data: {
-        siteName: input.siteName ?? existing.siteName,
-        branding: (input.branding ?? existing.branding) as Prisma.InputJsonValue,
-        accessibility: (input.accessibility ?? existing.accessibility) as Prisma.InputJsonValue,
-        contactEmail: input.contactEmail ?? existing.contactEmail,
-        contactPhone: input.contactPhone ?? existing.contactPhone,
-        address: (input.address ?? existing.address) as Prisma.InputJsonValue,
-      },
+      data,
     });
   }
 }

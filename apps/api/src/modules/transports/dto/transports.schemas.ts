@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { httpUrlSchema } from '../../../common/validation/url.schemas';
+
 const statusEnum = z.enum(['DRAFT', 'SCHEDULED', 'PUBLISHED', 'ARCHIVED']);
 
 export const transportsCreateSchema = z.object({
@@ -8,7 +10,7 @@ export const transportsCreateSchema = z.object({
   summary: z.string().optional().nullable(),
   content: z.any(),
   operator: z.string().optional().nullable(),
-  website: z.string().url().optional().nullable(),
+  website: httpUrlSchema.optional().nullable(),
   phone: z.string().optional().nullable(),
   status: statusEnum.optional(),
   publishedAt: z.string().datetime().optional().nullable(),

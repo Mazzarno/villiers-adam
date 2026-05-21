@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useSearchParams } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
 import { MoreHorizontal, Plus, ArrowUpDown, Pencil, Trash2, Archive, Send, Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -33,7 +34,8 @@ import {
 import { DataTable } from '@/components/content/data-table';
 import { StatusBadge } from '@/components/content/status-badge';
 import { MediaPicker } from '@/components/media/media-picker';
-import { municipalServices, type MunicipalService, type Media } from '@/lib/api';
+import { OpeningHoursEditor } from '@/components/forms/opening-hours-editor';
+import { municipalServices, type MunicipalService, type Media, type ContentStatus } from '@/lib/api';
 import { formatDate, slugify } from '@/lib/utils';
 
 const statusOptions = [
@@ -48,13 +50,13 @@ type FormData = {
   slug: string;
   description: string;
   category: string;
-  openingHours: string;
+  openingHours: Record<string, string>;
   address: string;
   phone: string;
   email: string;
   website: string;
   order: number;
-  status: string;
+  status: ContentStatus;
   coverMediaId?: string;
 };
 
@@ -63,7 +65,7 @@ const defaultFormData: FormData = {
   slug: '',
   description: '',
   category: '',
-  openingHours: '',
+  openingHours: {},
   address: '',
   phone: '',
   email: '',
@@ -73,33 +75,38 @@ const defaultFormData: FormData = {
 };
 
 export default function ServicesMunicipauxPage() {
+  const searchParams = useSearchParams();
+  const categoryParam = searchParams.get('category') ?? undefined;
   const [data, setData] = React.useState<MunicipalService[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [formData, setFormData] = React.useState<FormData>(defaultFormData);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [formError, setFormError] = React.useState('');
   const [coverMedia, setCoverMedia] = React.useState<Media | null>(null);
   const [showMediaPicker, setShowMediaPicker] = React.useState(false);
 
-  React.useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = React.useCallback(async () => {
     try {
-      const result = await municipalServices.list();
+      const result = await municipalServices.list(
+        categoryParam ? { category: categoryParam } : undefined,
+      );
       setData(result);
     } catch (error) {
       console.error('Failed to load municipal services:', error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [categoryParam]);
+
+  React.useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleCreate = () => {
     setEditingId(null);
-    setFormData(defaultFormData);
+    setFormData({ ...defaultFormData, category: categoryParam ?? '' });
     setCoverMedia(null);
     setDialogOpen(true);
   };
@@ -111,7 +118,7 @@ export default function ServicesMunicipauxPage() {
       slug: item.slug,
       description: item.description || '',
       category: item.category || '',
-      openingHours: item.openingHours ? JSON.stringify(item.openingHours, null, 2) : '',
+      openingHours: (item.openingHours ?? {}) as Record<string, string>,
       address: item.address || '',
       phone: item.phone || '',
       email: item.email || '',
@@ -121,25 +128,26 @@ export default function ServicesMunicipauxPage() {
       coverMediaId: item.coverMediaId || undefined,
     });
     setCoverMedia(item.coverMedia ?? null);
+    setFormError('');
     setDialogOpen(true);
-  };
-
-  const parseOpeningHours = () => {
-    if (!formData.openingHours) return null;
-    try {
-      return JSON.parse(formData.openingHours);
-    } catch {
-      return formData.openingHours;
-    }
   };
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      if (!formData.name.trim()) {
+        setFormError('Le nom est obligatoire.');
+        setIsSaving(false);
+        return;
+      }
+
       const payload = {
         ...formData,
         slug: formData.slug ? slugify(formData.slug) : undefined,
-        openingHours: parseOpeningHours(),
+        openingHours:
+          formData.openingHours && Object.keys(formData.openingHours).length > 0
+            ? formData.openingHours
+            : undefined,
         order: Number.isNaN(formData.order) ? 0 : formData.order,
         coverMediaId: formData.coverMediaId || null,
       };
@@ -152,6 +160,11 @@ export default function ServicesMunicipauxPage() {
       setDialogOpen(false);
       loadData();
     } catch (error) {
+      const message =
+        (error as { data?: { message?: string } })?.data?.message ||
+        (error as Error).message ||
+        'Impossible d\'enregistrer le service.';
+      setFormError(message);
       console.error('Failed to save:', error);
     } finally {
       setIsSaving(false);
@@ -266,6 +279,16 @@ export default function ServicesMunicipauxPage() {
     },
   ];
 
+  const searchTerm = (searchParams.get('search') || '').trim().toLowerCase();
+  const filteredData = React.useMemo(() => {
+    if (!searchTerm) return data;
+    return data.filter((item) =>
+      [item.name, item.description, item.category]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(searchTerm)),
+    );
+  }, [data, searchTerm]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -279,7 +302,7 @@ export default function ServicesMunicipauxPage() {
         </Button>
       </div>
 
-      <DataTable columns={columns} data={data} searchKey="name" isLoading={isLoading} />
+      <DataTable columns={columns} data={filteredData} searchKey="name" isLoading={isLoading} />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[720px]">
@@ -289,6 +312,11 @@ export default function ServicesMunicipauxPage() {
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
+            {formError && (
+              <div className="rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {formError}
+              </div>
+            )}
             <div className="grid gap-2">
               <Label>Nom</Label>
               <Input
@@ -333,14 +361,10 @@ export default function ServicesMunicipauxPage() {
             </div>
 
             <div className="grid gap-2">
-              <Label>Horaires (JSON ou texte)</Label>
-              <Textarea
-                rows={4}
+              <Label>Horaires d&apos;ouverture</Label>
+              <OpeningHoursEditor
                 value={formData.openingHours}
-                onChange={(e) =>
-                  setFormData((prev) => ({ ...prev, openingHours: e.target.value }))
-                }
-                placeholder='{"Lundi":"9h-12h"}'
+                onChange={(value) => setFormData((prev) => ({ ...prev, openingHours: value }))}
               />
             </div>
 
@@ -403,7 +427,7 @@ export default function ServicesMunicipauxPage() {
                 <Label>Statut</Label>
                 <Select
                   value={formData.status}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value as ContentStatus }))}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -450,6 +474,7 @@ export default function ServicesMunicipauxPage() {
         onSelect={(media) => {
           setCoverMedia(media);
           setFormData((prev) => ({ ...prev, coverMediaId: media.id }));
+          setShowMediaPicker(false);
         }}
         accept={['image/*']}
       />

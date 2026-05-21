@@ -30,33 +30,53 @@ const dmMono = DM_Mono({
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getPublicSettings();
-  const siteName = settings?.siteName || 'Villiers-Adam';
+  const siteName = settings?.siteName || 'Mairie';
+  const municipalityName = siteName === 'Mairie' ? 'la commune' : siteName;
+  const description =
+    siteName === 'Mairie'
+      ? 'Site officiel de la commune. Actualités, événements, démarches administratives et vie locale.'
+      : `Site officiel de la commune de ${siteName}. Actualités, événements, démarches administratives et vie locale.`;
+
+  const websiteCandidate = settings?.municipalityProfile?.contact?.website;
+  const baseUrlCandidates = [
+    typeof websiteCandidate === 'string' ? websiteCandidate : undefined,
+    process.env.NEXT_PUBLIC_SITE_URL,
+    'http://localhost:3000',
+  ];
+
+  let metadataBase = new URL('http://localhost:3000');
+  for (const candidate of baseUrlCandidates) {
+    if (!candidate) continue;
+    try {
+      metadataBase = new URL(candidate);
+      break;
+    } catch {
+      // ignore invalid URL candidates
+    }
+  }
 
   return {
-    metadataBase: new URL('https://www.villiers-adam.fr'),
+    metadataBase,
     title: {
       default: `${siteName} | Site officiel de la commune`,
       template: `%s | ${siteName}`,
     },
-    description:
-      'Site officiel de la commune de Villiers-Adam dans le Val-d\'Oise. Actualités, événements, démarches administratives et vie locale.',
+    description,
     keywords: [
-      'Villiers-Adam',
       'mairie',
-      'Val-d\'Oise',
       'commune',
-      'Île-de-France',
-      'Vexin français',
+      'services municipaux',
+      'démarches administratives',
+      municipalityName,
     ],
     authors: [{ name: `Mairie de ${siteName}` }],
     openGraph: {
       type: 'website',
       locale: 'fr_FR',
-      url: 'https://www.villiers-adam.fr',
+      url: metadataBase.toString(),
       siteName,
       title: `${siteName} | Site officiel de la commune`,
-      description:
-        'Site officiel de la commune de Villiers-Adam dans le Val-d\'Oise.',
+      description,
       images: [
         {
           url: '/og-image.jpg',
@@ -69,8 +89,7 @@ export async function generateMetadata(): Promise<Metadata> {
     twitter: {
       card: 'summary_large_image',
       title: `${siteName} | Site officiel de la commune`,
-      description:
-        'Site officiel de la commune de Villiers-Adam dans le Val-d\'Oise.',
+      description,
     },
     robots: {
       index: true,

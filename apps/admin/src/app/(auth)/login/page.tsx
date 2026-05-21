@@ -8,6 +8,7 @@ import { Loader2, Mail, Lock, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import Image from 'next/image';
 import {
   Card,
   CardContent,
@@ -141,7 +142,7 @@ export default function LoginPage() {
     <Card>
       <CardHeader className="space-y-1 text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
-          <span className="text-lg font-bold text-primary-foreground">VA</span>
+      <Image src="/images/blason.svg" alt="Blason" width={28} height={28} />
         </div>
         <CardTitle className="text-2xl">Connexion</CardTitle>
         <CardDescription>

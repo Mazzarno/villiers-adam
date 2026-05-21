@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useSearchParams } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
 import {
   MoreHorizontal,
@@ -48,10 +49,10 @@ import { DataTable } from '@/components/content/data-table';
 import { Badge } from '@/components/ui/badge';
 import { MediaPicker } from '@/components/media/media-picker';
 import { StatusBadge } from '@/components/content/status-badge';
+import { OpeningHoursEditor } from '@/components/forms/opening-hours-editor';
 import { annuaire, type DirectoryEntry, type Media } from '@/lib/api';
 
 const typeOptions = [
-  { label: 'Tous', value: '' },
   { label: 'Association', value: 'ASSOCIATION' },
   { label: 'Entreprise', value: 'ENTERPRISE' },
   { label: 'Commerce', value: 'COMMERCE' },
@@ -83,7 +84,7 @@ type FormData = {
   website: string;
   latitude: string;
   longitude: string;
-  openingHours: string;
+  openingHours: Record<string, string>;
   coverMediaId: string;
 };
 
@@ -101,11 +102,12 @@ const defaultFormData: FormData = {
   website: '',
   latitude: '',
   longitude: '',
-  openingHours: '',
+  openingHours: {},
   coverMediaId: '',
 };
 
 export default function AnnuairePage() {
+  const searchParams = useSearchParams();
   const [data, setData] = React.useState<DirectoryEntry[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [dialogOpen, setDialogOpen] = React.useState(false);
@@ -159,7 +161,7 @@ export default function AnnuairePage() {
       website: item.website || '',
       latitude: item.latitude?.toString() || '',
       longitude: item.longitude?.toString() || '',
-      openingHours: item.openingHours ? JSON.stringify(item.openingHours, null, 2) : '',
+      openingHours: item.openingHours ?? {},
       coverMediaId: item.coverMediaId || '',
     });
     setSelectedMedia(item.coverMediaId ? { id: item.coverMediaId } as Media : null);
@@ -171,23 +173,22 @@ export default function AnnuairePage() {
     setIsSaving(true);
     setFormError('');
     try {
-      let openingHours: Record<string, string> | undefined;
-      if (formData.openingHours.trim()) {
-        try {
-          openingHours = JSON.parse(formData.openingHours);
-        } catch {
-          setFormError('Les horaires doivent être un JSON valide.');
-          setIsSaving(false);
-          return;
-        }
+      if (!formData.name.trim()) {
+        setFormError('Le nom est obligatoire.');
+        setIsSaving(false);
+        return;
       }
 
       const latitudeValue = formData.latitude ? Number(formData.latitude) : undefined;
       const longitudeValue = formData.longitude ? Number(formData.longitude) : undefined;
+      const openingHours =
+        formData.openingHours && Object.keys(formData.openingHours).length > 0
+          ? formData.openingHours
+          : undefined;
 
       const payload = {
         name: formData.name,
-        type: formData.type,
+        type: formData.type as 'ASSOCIATION' | 'ENTERPRISE' | 'COMMERCE',
         description: formData.description || undefined,
         addressLine1: formData.addressLine1 || undefined,
         addressLine2: formData.addressLine2 || undefined,
@@ -211,6 +212,11 @@ export default function AnnuairePage() {
       setDialogOpen(false);
       loadData();
     } catch (error) {
+      const message =
+        (error as { data?: { message?: string } })?.data?.message ||
+        (error as Error).message ||
+        'Impossible d\'enregistrer l\'entrée.';
+      setFormError(message);
       console.error('Failed to save:', error);
     } finally {
       setIsSaving(false);
@@ -434,6 +440,30 @@ export default function AnnuairePage() {
     },
   ];
 
+  const typeParam = searchParams.get('type');
+  const searchParam = searchParams.get('search');
+  const typeFilter = React.useMemo(() => {
+    if (!typeParam) return null;
+    if (typeParam === 'ECONOMY') return ['COMMERCE', 'ENTERPRISE'];
+    return [typeParam];
+  }, [typeParam]);
+
+  const filteredData = React.useMemo(() => {
+    let filtered = data;
+    if (typeFilter) {
+      filtered = filtered.filter((entry) => entry.type && typeFilter.includes(entry.type));
+    }
+    const term = (searchParam || '').trim().toLowerCase();
+    if (term) {
+      filtered = filtered.filter((entry) =>
+        [entry.name, entry.description, entry.city, entry.addressLine1, entry.addressLine2]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(term)),
+      );
+    }
+    return filtered;
+  }, [data, typeFilter, searchParam]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -456,7 +486,7 @@ export default function AnnuairePage() {
       ) : (
         <DataTable
           columns={columns}
-          data={data}
+          data={filteredData}
           searchKey="name"
           searchPlaceholder="Rechercher dans l'annuaire..."
           filterColumn="type"
@@ -465,7 +495,7 @@ export default function AnnuairePage() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>
               {editingId ? 'Modifier l\'entrée' : 'Nouvelle entrée'}
@@ -615,13 +645,10 @@ export default function AnnuairePage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="openingHours">Horaires (JSON)</Label>
-              <Textarea
-                id="openingHours"
+              <Label>Horaires d&apos;ouverture</Label>
+              <OpeningHoursEditor
                 value={formData.openingHours}
-                onChange={(e) => setFormData({ ...formData, openingHours: e.target.value })}
-                placeholder='{"Lundi":"9h-12h"}'
-                rows={4}
+                onChange={(value) => setFormData((prev) => ({ ...prev, openingHours: value }))}
               />
             </div>
             <div className="space-y-2">
@@ -636,7 +663,7 @@ export default function AnnuairePage() {
                     type="button"
                     variant="ghost"
                     onClick={() => {
-                      setFormData({ ...formData, coverMediaId: '' });
+                      setFormData((prev) => ({ ...prev, coverMediaId: '' }));
                       setSelectedMedia(null);
                     }}
                   >
@@ -667,7 +694,7 @@ export default function AnnuairePage() {
         onOpenChange={setMediaPickerOpen}
         onSelect={(media) => {
           setSelectedMedia(media);
-          setFormData({ ...formData, coverMediaId: media.id });
+          setFormData((prev) => ({ ...prev, coverMediaId: media.id }));
           setMediaPickerOpen(false);
         }}
         accept={['image/*']}

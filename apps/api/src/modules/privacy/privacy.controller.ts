@@ -18,7 +18,7 @@ type EmailQuery = z.infer<typeof emailQuerySchema>;
 export class PrivacyController {
   constructor(private readonly privacyService: PrivacyService) {}
 
-  @RequirePermission('content:read')
+  @RequirePermission('settings:read')
   @Get('export')
   exportByEmail(@Query(new ZodValidationPipe(emailQuerySchema)) query: EmailQuery) {
     return this.privacyService.exportByEmail(query.email);

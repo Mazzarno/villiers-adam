@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { httpUrlSchema } from '../../../common/validation/url.schemas';
+
 const statusEnum = z.enum(['DRAFT', 'SCHEDULED', 'PUBLISHED', 'ARCHIVED']);
 
 export const municipalServiceCreateSchema = z.object({
@@ -11,7 +13,7 @@ export const municipalServiceCreateSchema = z.object({
   address: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
   email: z.string().email().optional().nullable(),
-  website: z.string().url().optional().nullable(),
+  website: httpUrlSchema.optional().nullable(),
   order: z.number().int().optional(),
   status: statusEnum.optional(),
   publishedAt: z.string().datetime().optional().nullable(),

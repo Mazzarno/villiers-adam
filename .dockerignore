@@ -1,0 +1,16 @@
+node_modules
+.git
+.github
+.turbo
+.next
+dist
+coverage
+test-results
+backups
+*.log
+.env
+.env.*
+!.env.example
+!.env.preprod.example
+.DS_Store
+

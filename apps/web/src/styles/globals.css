@@ -1,10 +1,19 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Source+Serif+4:ital,opsz,wght@0,8..60,200..900;1,8..60,200..900&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&display=swap');
 @import 'leaflet/dist/leaflet.css';
 
-/* Police OpenDyslexic pour le mode dyslexie */
+@keyframes flash-marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(calc(-1 * var(--flash-marquee-shift, 50%)), 0, 0);
+  }
+}
+
+/* Police OpenDyslexic pour le mode dyslexie (local) */
 @font-face {
   font-family: 'OpenDyslexic';
-  src: url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Regular.woff') format('woff');
+  src: url('/fonts/OpenDyslexic-Regular.otf') format('opentype');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -12,7 +21,7 @@
 
 @font-face {
   font-family: 'OpenDyslexic';
-  src: url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Bold.woff') format('woff');
+  src: url('/fonts/OpenDyslexic-Bold.otf') format('opentype');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -20,7 +29,7 @@
 
 @font-face {
   font-family: 'OpenDyslexic';
-  src: url('https://cdn.jsdelivr.net/npm/open-dyslexic@1.0.3/woff/OpenDyslexic-Italic.woff') format('woff');
+  src: url('/fonts/OpenDyslexic-Italic.otf') format('opentype');
   font-weight: 400;
   font-style: italic;
   font-display: swap;
@@ -45,7 +54,7 @@
     --secondary-foreground: 213 56% 16%;
     --muted: 40 20% 93%;
     --muted-foreground: 213 20% 46%;
-    --accent: 100 52% 20%;
+    --accent: 24 55% 40%;
     --accent-foreground: 40 33% 98%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 40 33% 98%;
@@ -59,11 +68,22 @@
     --villiers-blue-light: #2d4a6f;
     --villiers-gold: #c9a227;
     --villiers-gold-soft: #d4b44a;
-    --villiers-green: #2d5016;
-    --villiers-green-light: #3d6b1f;
+    --villiers-green: #b87333;
+    --villiers-green-light: #c98b5a;
     --villiers-cream: #FAF8F5;
     --villiers-stone: #E8E4DD;
     --villiers-slate: #3D4852;
+    --a11y-senior-scale: 1;
+    --a11y-dyslexic-scale: 1;
+    --a11y-text-size-scale: 1;
+    --a11y-line-height-base: 1.6;
+    --a11y-label-line-height: 1.45;
+    --hero-title-size: clamp(2.05rem, 5.2vw, 3.75rem);
+    --hero-subtitle-size: clamp(1.02rem, 1.95vw, 1.24rem);
+    --hero-button-size: clamp(1rem, 1.1vw, 1.08rem);
+    --hero-title-line-height: 1.06;
+    --hero-subtitle-line-height: 1.7;
+    --hero-button-line-height: 1.3;
   }
 
   .dark {
@@ -72,8 +92,8 @@
     --villiers-blue-light: #6b9ad0;
     --villiers-gold: #e0b830;
     --villiers-gold-soft: #f0c850;
-    --villiers-green: #5a9f30;
-    --villiers-green-light: #70b545;
+    --villiers-green: #d08a56;
+    --villiers-green-light: #e0a373;
     --villiers-cream: #1a1a1a;
     --villiers-stone: #252525;
     --villiers-slate: #9ca3af;
@@ -89,7 +109,7 @@
     --secondary-foreground: 213 56% 8%;
     --muted: 213 32% 17%;
     --muted-foreground: 213 20% 65%;
-    --accent: 100 52% 35%;
+    --accent: 24 55% 48%;
     --accent-foreground: 40 33% 96%;
     --destructive: 0 62.8% 40%;
     --destructive-foreground: 40 33% 96%;
@@ -100,30 +120,72 @@
 
   /* Mode Senior */
   .senior-mode {
-    --font-size-base: 1.125rem;
-    --line-height-base: 1.8;
+    --a11y-senior-scale: 1.125;
+    --a11y-line-height-base: 1.75;
+    --a11y-label-line-height: 1.56;
+    --hero-title-size: clamp(2.45rem, 6.1vw, 4.1rem);
+    --hero-subtitle-size: clamp(1.18rem, 2.2vw, 1.42rem);
+    --hero-button-size: clamp(1.12rem, 1.6vw, 1.2rem);
+    --hero-title-line-height: 1.12;
+    --hero-subtitle-line-height: 1.82;
+    --hero-button-line-height: 1.45;
   }
 
   .senior-mode body {
-    font-size: var(--font-size-base);
-    line-height: var(--line-height-base);
+    line-height: var(--a11y-line-height-base);
   }
 
-  .senior-mode h1 { font-size: 2.5rem !important; }
-  .senior-mode h2 { font-size: 2rem !important; }
-  .senior-mode h3 { font-size: 1.75rem !important; }
-  .senior-mode p, .senior-mode li { font-size: 1.25rem !important; }
-  .senior-mode button, .senior-mode a { font-size: 1.125rem !important; }
+  .senior-mode :where(p, li, dt, dd) {
+    line-height: 1.8;
+  }
+
+  .senior-mode :where(button, a, label, input, select, textarea) {
+    line-height: var(--a11y-label-line-height);
+  }
 
   /* Mode Dyslexique */
   .dyslexic-mode {
     font-family: 'OpenDyslexic', sans-serif !important;
-    letter-spacing: 0.05em;
-    word-spacing: 0.1em;
+    letter-spacing: 0.02em;
+    word-spacing: 0.06em;
+    --a11y-dyslexic-scale: 1.03;
+    --a11y-line-height-base: 1.8;
+    --a11y-label-line-height: 1.65;
+    --hero-title-size: clamp(2.3rem, 5.8vw, 3.95rem);
+    --hero-subtitle-size: clamp(1.13rem, 2.15vw, 1.34rem);
+    --hero-button-size: clamp(1.08rem, 1.5vw, 1.16rem);
+    --hero-title-line-height: 1.16;
+    --hero-subtitle-line-height: 1.9;
+    --hero-button-line-height: 1.5;
+  }
+
+  .dyslexic-mode body {
+    line-height: var(--a11y-line-height-base);
   }
 
   .dyslexic-mode * {
     font-family: inherit !important;
+  }
+
+  .dyslexic-mode :where(p, li, dt, dd) {
+    line-height: 1.85;
+  }
+
+  .dyslexic-mode :where(button, a, label, input, select, textarea) {
+    line-height: var(--a11y-label-line-height);
+    letter-spacing: 0.015em;
+  }
+
+  /* Éviter les débordements en mode dyslexique */
+  .dyslexic-mode .container {
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    min-width: 0;
+  }
+
+  .dyslexic-mode :where(h1, h2, h3, p, li, a, button, span, dt, dd) {
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   /* Mode Contraste élevé */
@@ -149,24 +211,38 @@
 
   /* Tailles de texte */
   .text-size-normal {
-    font-size: 100%;
+    --a11y-text-size-scale: 1;
   }
 
   .text-size-large {
-    font-size: 112.5%;
+    --a11y-text-size-scale: 1.1;
   }
-
-  .text-size-large h1 { font-size: 2.75rem !important; }
-  .text-size-large h2 { font-size: 2.25rem !important; }
-  .text-size-large h3 { font-size: 1.875rem !important; }
 
   .text-size-xlarge {
-    font-size: 125%;
+    --a11y-text-size-scale: 1.2;
   }
 
-  .text-size-xlarge h1 { font-size: 3rem !important; }
-  .text-size-xlarge h2 { font-size: 2.5rem !important; }
-  .text-size-xlarge h3 { font-size: 2rem !important; }
+  :where(.dyslexic-mode, .senior-mode, .text-size-large, .text-size-xlarge) :where(
+    h1, h2, h3, h4, h5, h6, p, li, a, button, label, span, dt, dd, th, td
+  ) {
+    overflow-wrap: anywhere;
+    word-break: normal;
+    hyphens: auto;
+  }
+
+  :where(.dyslexic-mode, .senior-mode, .text-size-large, .text-size-xlarge) :where(.grid, .flex) > * {
+    min-width: 0;
+  }
+
+  :where(.senior-mode, .text-size-large, .text-size-xlarge)
+    :where(input:not([type='checkbox']):not([type='radio']), select, textarea) {
+    min-height: 2.75rem;
+    line-height: 1.45;
+  }
+
+  .text-size-xlarge :where(input:not([type='checkbox']):not([type='radio']), select, textarea) {
+    min-height: 3rem;
+  }
 
   /* Réduire les animations */
   .reduce-motion *,
@@ -187,11 +263,36 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "liga" 1, "calt" 1;
+    line-height: var(--a11y-line-height-base);
+  }
+
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  @supports (overflow: clip) {
+    html,
+    body {
+      overflow-x: clip;
+    }
+  }
+
+  /* Touch device optimization */
+  a, button, input, select, textarea, [role="button"] {
+    touch-action: manipulation;
+  }
+
+  /* Tabular numbers for aligned numeric displays */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
   }
 
   /* Typography base avec Source Serif 4 */
   html {
     font-family: var(--font-source-serif), Georgia, serif;
+    font-size: calc(100% * var(--a11y-senior-scale) * var(--a11y-dyslexic-scale) * var(--a11y-text-size-scale));
   }
 
   h1, h2, h3, h4, h5, h6 {
@@ -213,6 +314,17 @@
     @apply prose-a:text-primary prose-a:no-underline hover:prose-a:underline;
     @apply prose-strong:text-foreground;
     @apply prose-img:rounded-lg;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .prose-villiers :where(img, table, pre, code) {
+    max-width: 100%;
+  }
+
+  .prose-villiers table {
+    display: block;
+    overflow-x: auto;
   }
 
   .prose-villiers.dark {
@@ -231,6 +343,54 @@
 
   .flash-banner:hover .flash-banner-content {
     animation-play-state: paused;
+  }
+
+  .hero-text-scrim {
+    background:
+      linear-gradient(96deg, rgba(7, 22, 41, 0.62) 0%, rgba(7, 22, 41, 0.4) 36%, rgba(7, 22, 41, 0.16) 58%, rgba(7, 22, 41, 0) 78%);
+  }
+
+  .hero-copy-surface {
+    isolation: isolate;
+  }
+
+  .hero-eyebrow {
+    color: rgb(236 206 96 / 0.98);
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
+  }
+
+  .hero-title {
+    color: rgb(251 253 255 / 0.99);
+    text-shadow: 0 3px 16px rgba(3, 12, 22, 0.56);
+    text-wrap: balance;
+  }
+
+  .hero-subtitle {
+    color: rgb(243 248 255 / 0.97);
+    text-shadow: 0 2px 12px rgba(3, 12, 22, 0.5);
+  }
+
+  .hero-primary-button,
+  .hero-secondary-button {
+    font-size: var(--hero-button-size);
+    line-height: var(--hero-button-line-height);
+  }
+
+  @media (min-width: 640px) {
+    .hero-primary-button,
+    .hero-secondary-button {
+      min-height: 3.05rem;
+    }
+  }
+
+  /* Animation marquee avec durée contrôlable */
+  .animate-marquee {
+    animation: marquee var(--marquee-duration, 30s) linear infinite;
+  }
+
+  .flash-marquee-track {
+    animation: flash-marquee var(--marquee-duration, 30s) linear infinite;
+    will-change: transform;
   }
 
   /* Card hover effect organique */

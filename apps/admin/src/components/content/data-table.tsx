@@ -112,6 +112,11 @@ export function DataTable<TData, TValue>({
             />
           </div>
           {filterColumn && filterOptions && (
+            (() => {
+              const safeOptions = filterOptions.filter(
+                (option) => option.value && String(option.value).trim() !== '',
+              );
+              return (
             <Select
               value={(table.getColumn(filterColumn)?.getFilterValue() as string) ?? ''}
               onValueChange={(value) =>
@@ -122,14 +127,16 @@ export function DataTable<TData, TValue>({
                 <SelectValue placeholder="Tous les statuts" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Tous les statuts</SelectItem>
-                {filterOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
+                <SelectItem value="all">Tous</SelectItem>
+                {safeOptions.map((option) => (
+                  <SelectItem key={option.value} value={String(option.value)}>
                     {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+              );
+            })()
           )}
         </div>
         <DropdownMenu>

@@ -137,7 +137,7 @@ export function MayorMessage() {
                 asChild
                 className="bg-villiers-blue hover:bg-villiers-blue-light text-white rounded-organic transition-all duration-300 hover:scale-[1.02] hover:shadow-organic-hover group"
               >
-                <Link href="/mairie/conseil-municipal">
+                <Link href="/conseil-municipal">
                   Découvrir l&apos;équipe
                   <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                 </Link>

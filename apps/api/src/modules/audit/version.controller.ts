@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
 
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import { PermissionGuard } from '../../common/guards/permission.guard';
@@ -19,7 +19,7 @@ export class VersionController {
   @UseGuards(JwtAuthGuard, PermissionGuard)
   @RequirePermission('content:update')
   @Post(':id/restore')
-  restore(@Param('id') id: string, @Body() _body: Record<string, unknown>) {
+  restore(@Param('id') id: string) {
     return this.versionService.restore(id);
   }
 }

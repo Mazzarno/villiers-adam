@@ -8,6 +8,7 @@ export class EmailService {
   private readonly client?: ReturnType<typeof Mailjet.apiConnect>;
   private readonly senderEmail?: string;
   private readonly senderName?: string;
+  private readonly contactRecipient?: string;
 
   constructor(private readonly config: ConfigService) {
     const apiKey = config.get<string>('MAILJET_API_KEY');
@@ -18,6 +19,9 @@ export class EmailService {
       this.senderEmail = config.get<string>('MAILJET_SENDER_EMAIL');
       this.senderName = config.get<string>('MAILJET_SENDER_NAME') ?? 'Mairie';
     }
+
+    this.contactRecipient =
+      config.get<string>('CONTACT_FORM_RECIPIENT') ?? config.get<string>('MAILJET_SENDER_EMAIL');
   }
 
   async sendPasswordReset(email: string, token: string) {
@@ -65,6 +69,30 @@ export class EmailService {
     });
   }
 
+  async sendContactMessage(input: {
+    name: string;
+    email: string;
+    subject: string;
+    message: string;
+  }) {
+    const recipient = this.contactRecipient ?? this.senderEmail;
+    if (!recipient) {
+      this.logger.warn('No contact recipient configured. Skipping contact message delivery.');
+      return { skipped: true };
+    }
+
+    const escapedName = this.escapeHtml(input.name);
+    const escapedEmail = this.escapeHtml(input.email);
+    const escapedMessage = this.escapeHtml(input.message).replace(/\n/g, '<br />');
+
+    return this.sendMail({
+      to: recipient,
+      subject: `[Contact site] ${input.subject}`,
+      text: `Nom: ${input.name}\nEmail: ${input.email}\n\n${input.message}`,
+      html: `<p><strong>Nom:</strong> ${escapedName}</p><p><strong>Email:</strong> ${escapedEmail}</p><p><strong>Message:</strong></p><p>${escapedMessage}</p>`,
+    });
+  }
+
   private async sendMail({
     to,
     subject,
@@ -97,5 +125,14 @@ export class EmailService {
     });
 
     return request;
+  }
+
+  private escapeHtml(value: string) {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 }

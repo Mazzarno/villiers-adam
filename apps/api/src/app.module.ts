@@ -9,7 +9,6 @@ import { PrismaModule } from './common/prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { ContentModule } from './modules/content/content.module';
-import { AgendaModule } from './modules/agenda/agenda.module';
 import { AnnuaireModule } from './modules/annuaire/annuaire.module';
 import { DemarchesModule } from './modules/demarches/demarches.module';
 import { MediaModule } from './modules/media/media.module';
@@ -18,15 +17,15 @@ import { EmailModule } from './modules/email/email.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { HealthModule } from './modules/health/health.module';
-import { ReservationsModule } from './modules/reservations/reservations.module';
-import { RoomsModule } from './modules/rooms/rooms.module';
-import { FormsModule } from './modules/forms/forms.module';
 import { ExportModule } from './modules/export/export.module';
 import { PrivacyModule } from './modules/privacy/privacy.module';
 import { CouncilModule } from './modules/council/council.module';
 import { MunicipalServicesModule } from './modules/municipal-services/municipal-services.module';
 import { TransportsModule } from './modules/transports/transports.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
+import { NewslettersModule } from './modules/newsletters/newsletters.module';
+import { ContactModule } from './modules/contact/contact.module';
+import { PreviewDraftsModule } from './modules/preview-drafts/preview-drafts.module';
 
 @Module({
   imports: [
@@ -61,15 +60,11 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     AuthModule,
     UsersModule,
     ContentModule,
-    AgendaModule,
     AnnuaireModule,
     DemarchesModule,
     MediaModule,
     SearchModule,
     EmailModule,
-    ReservationsModule,
-    RoomsModule,
-    FormsModule,
     ExportModule,
     PrivacyModule,
     SettingsModule,
@@ -78,6 +73,9 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
     MunicipalServicesModule,
     TransportsModule,
     NotificationsModule,
+    NewslettersModule,
+    ContactModule,
+    PreviewDraftsModule,
   ],
 })
 export class AppModule {}

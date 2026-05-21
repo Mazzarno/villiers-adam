@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Home, Search } from 'lucide-react';
+import { Home } from 'lucide-react';
 
 export default function NotFound() {
   return (
@@ -21,12 +21,6 @@ export default function NotFound() {
             <Link href="/">
               <Home className="mr-2 h-4 w-4" />
               Retour à l&apos;accueil
-            </Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/recherche">
-              <Search className="mr-2 h-4 w-4" />
-              Rechercher
             </Link>
           </Button>
         </div>

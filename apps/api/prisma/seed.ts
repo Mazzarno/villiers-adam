@@ -1,12 +1,20 @@
-import { PrismaClient } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import argon2 from 'argon2';
-import { mairieConfig } from '@villiers-adam/shared';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const adminEmail = 'admin@mairie.fr';
-  const adminPassword = 'ChangeMe123!';
+  const isProduction = process.env.NODE_ENV === 'production';
+  const adminEmail = process.env.SEED_ADMIN_EMAIL ?? 'admin@mairie.fr';
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? (isProduction ? undefined : 'ChangeMe123!');
+
+  if (!adminPassword) {
+    throw new Error('SEED_ADMIN_PASSWORD is required in production');
+  }
+
+  if (!process.env.SEED_ADMIN_PASSWORD) {
+    console.warn('Using default development admin password. Set SEED_ADMIN_PASSWORD to override.');
+  }
 
   await prisma.user.upsert({
     where: { email: adminEmail },
@@ -25,16 +33,17 @@ async function main() {
     update: {},
     create: {
       id: 'default',
-      siteName: mairieConfig.commune.nomComplet,
-      branding: mairieConfig.branding,
+      siteName: 'Mairie',
+      branding: {} as Prisma.InputJsonValue,
       accessibility: {
         seniorMode: true,
         dyslexicMode: false,
         nightMode: true,
-      },
-      contactEmail: mairieConfig.mairie.contact.email,
-      contactPhone: mairieConfig.mairie.contact.telephone,
-      address: mairieConfig.mairie.adresse,
+      } as Prisma.InputJsonValue,
+      contactEmail: null,
+      contactPhone: null,
+      address: Prisma.JsonNull,
+      municipalityProfile: Prisma.JsonNull,
     },
   });
 }

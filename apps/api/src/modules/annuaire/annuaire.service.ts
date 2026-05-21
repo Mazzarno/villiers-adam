@@ -3,6 +3,7 @@ import { Cron } from '@nestjs/schedule';
 import { ContentStatus, DirectoryType, Prisma } from '@prisma/client';
 import { slugify } from '@villiers-adam/shared';
 
+import { sanitizeHttpUrl } from '../../common/security/url-sanitizer';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditService } from '../audit/audit.service';
 import { VersionService } from '../audit/version.service';
@@ -23,10 +24,18 @@ export class AnnuaireService {
     private readonly searchService: SearchService,
   ) {}
 
+  private sanitizeWebsite<T extends { website: string | null }>(entry: T): T {
+    return {
+      ...entry,
+      website: sanitizeHttpUrl(entry.website),
+    };
+  }
+
   async listPublished(params: { type?: DirectoryType; search?: string }) {
+    const now = new Date();
     const where: Prisma.DirectoryEntryWhereInput = {
       status: ContentStatus.PUBLISHED,
-      publishedAt: { lte: new Date() },
+      OR: [{ publishedAt: { lte: now } }, { publishedAt: null }],
     };
 
     if (params.type) {
@@ -37,11 +46,12 @@ export class AnnuaireService {
       where.name = { contains: params.search, mode: 'insensitive' };
     }
 
-    return this.prisma.directoryEntry.findMany({
+    const entries = await this.prisma.directoryEntry.findMany({
       where,
       orderBy: { name: 'asc' },
       include: { coverMedia: true },
     });
+    return entries.map((entry) => this.sanitizeWebsite(entry));
   }
 
   async listAll(params: { status?: ContentStatus; search?: string; type?: DirectoryType }) {
@@ -56,10 +66,11 @@ export class AnnuaireService {
       where.name = { contains: params.search, mode: 'insensitive' };
     }
 
-    return this.prisma.directoryEntry.findMany({
+    const entries = await this.prisma.directoryEntry.findMany({
       where,
       orderBy: { updatedAt: 'desc' },
     });
+    return entries.map((entry) => this.sanitizeWebsite(entry));
   }
 
   async getBySlug(slug: string) {
@@ -70,7 +81,7 @@ export class AnnuaireService {
     if (!entry || entry.status !== ContentStatus.PUBLISHED) {
       throw new NotFoundException('Entry not found');
     }
-    return entry;
+    return this.sanitizeWebsite(entry);
   }
 
   async create(input: AnnuaireCreateInput, actor: AuditContext) {
@@ -85,7 +96,7 @@ export class AnnuaireService {
         description: input.description ?? null,
         phone: input.phone ?? null,
         email: input.email ?? null,
-        website: input.website ?? null,
+        website: sanitizeHttpUrl(input.website),
         addressLine1: input.addressLine1 ?? null,
         addressLine2: input.addressLine2 ?? null,
         postalCode: input.postalCode ?? null,
@@ -115,7 +126,7 @@ export class AnnuaireService {
 
     await this.searchService.upsertDirectory(entry);
 
-    return entry;
+    return this.sanitizeWebsite(entry);
   }
 
   async update(id: string, input: AnnuaireUpdateInput, actor: AuditContext) {
@@ -136,7 +147,10 @@ export class AnnuaireService {
         description: input.description !== undefined ? input.description : entry.description,
         phone: input.phone !== undefined ? input.phone : entry.phone,
         email: input.email !== undefined ? input.email : entry.email,
-        website: input.website !== undefined ? input.website : entry.website,
+        website:
+          input.website !== undefined
+            ? sanitizeHttpUrl(input.website)
+            : sanitizeHttpUrl(entry.website),
         addressLine1: input.addressLine1 !== undefined ? input.addressLine1 : entry.addressLine1,
         addressLine2: input.addressLine2 !== undefined ? input.addressLine2 : entry.addressLine2,
         postalCode: input.postalCode !== undefined ? input.postalCode : entry.postalCode,
@@ -166,7 +180,7 @@ export class AnnuaireService {
 
     await this.searchService.upsertDirectory(updated);
 
-    return updated;
+    return this.sanitizeWebsite(updated);
   }
 
   async remove(id: string, actor: AuditContext) {
@@ -270,10 +284,21 @@ export class AnnuaireService {
   @Cron('*/5 * * * *')
   async publishScheduled() {
     const now = new Date();
-    await this.prisma.directoryEntry.updateMany({
+    const ready = await this.prisma.directoryEntry.findMany({
       where: { status: ContentStatus.SCHEDULED, scheduledAt: { lte: now } },
+      select: { id: true },
+    });
+
+    if (ready.length === 0) {
+      return;
+    }
+
+    await this.prisma.directoryEntry.updateMany({
+      where: { id: { in: ready.map((entry) => entry.id) } },
       data: { status: ContentStatus.PUBLISHED, publishedAt: now, scheduledAt: null },
     });
+
+    await Promise.all(ready.map((entry) => this.searchService.upsertDirectory(entry)));
   }
 
   private async ensureExists(id: string) {
@@ -316,7 +341,7 @@ export class AnnuaireService {
     let candidate = slug;
     let counter = 1;
 
-    while (true) {
+    for (;;) {
       const existing = await this.prisma.directoryEntry.findUnique({ where: { slug: candidate } });
       if (!existing || existing.id === excludeId) {
         return candidate;

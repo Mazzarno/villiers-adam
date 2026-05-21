@@ -16,6 +16,8 @@ import {
   Clock,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatHoraireJour, type HoraireJour } from '@/lib/config';
+import { usePublicSettings } from '@/hooks/use-public-settings';
 
 const sections = [
   {
@@ -24,6 +26,7 @@ const sections = [
     description: 'Découvrez l\'équipe municipale élue et ses délégations',
     icon: Users,
     color: 'bg-villiers-blue/10 text-villiers-blue border-villiers-blue/20',
+    href: '/conseil-municipal',
   },
   {
     slug: 'services',
@@ -31,6 +34,7 @@ const sections = [
     description: 'État civil, urbanisme, services postaux et démarches courantes',
     icon: Briefcase,
     color: 'bg-villiers-gold/10 text-villiers-gold border-villiers-gold/20',
+    href: '/services-municipaux',
   },
   {
     slug: 'publications',
@@ -38,10 +42,21 @@ const sections = [
     description: 'Arrêtés municipaux, comptes-rendus du conseil et délibérations',
     icon: FileText,
     color: 'bg-villiers-green/10 text-villiers-green border-villiers-green/20',
+    href: '/publications',
   },
 ];
 
 export default function MairiePage() {
+  const { settings, isLoading } = usePublicSettings();
+  const siteName = settings?.siteName || 'Mairie';
+  const municipalityProfile = settings?.municipalityProfile;
+  const contactPhone = municipalityProfile?.contact?.telephone || settings?.contactPhone;
+  const contactEmail = municipalityProfile?.contact?.email || settings?.contactEmail;
+  const addressLine = municipalityProfile?.contact?.adresse || settings?.address?.street;
+  const horaires = municipalityProfile?.horaires;
+  const settingsUnavailable = !isLoading && !settings;
+  const hasHoraires = Boolean(horaires && Object.keys(horaires).length > 0);
+
   return (
     <div className="min-h-screen">
       {/* Hero section avec image de la mairie */}
@@ -64,7 +79,7 @@ export default function MairiePage() {
                 La <span className="display-italic">Mairie</span>
               </h1>
               <p className="text-lg text-muted-foreground leading-relaxed mb-8">
-                La mairie de Villiers-Adam vous accueille pour toutes vos démarches administratives.
+                La mairie de {siteName} vous accueille pour toutes vos démarches administratives.
                 Retrouvez ici les informations sur l&apos;équipe municipale, les services et les publications officielles.
               </p>
 
@@ -74,14 +89,29 @@ export default function MairiePage() {
                   <Clock className="h-4 w-4 text-villiers-gold" />
                   <span className="font-medium text-foreground text-sm">Horaires d&apos;ouverture</span>
                 </div>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm text-muted-foreground">
-                  <span>Lundi</span><span className="font-mono">9h–12h / 14h–17h</span>
-                  <span>Mardi</span><span className="font-mono text-muted-foreground/50">Fermé</span>
-                  <span>Mercredi</span><span className="font-mono">10h–12h</span>
-                  <span>Jeudi</span><span className="font-mono">9h–12h / 14h–17h</span>
-                  <span>Vendredi</span><span className="font-mono text-muted-foreground/50">Fermé</span>
-                  <span>Samedi</span><span className="font-mono">10h–12h</span>
-                </div>
+                {isLoading ? (
+                  <p className="text-sm text-muted-foreground">Chargement des horaires...</p>
+                ) : hasHoraires ? (
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm text-muted-foreground">
+                    {(['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'] as const).map((jour) => {
+                      const schedule = (horaires?.[jour] ?? null) as HoraireJour;
+                      return (
+                        <React.Fragment key={jour}>
+                          <span className="capitalize">{jour}</span>
+                          <span className={cn('font-mono text-xs', !schedule && 'text-muted-foreground/50')}>
+                            {formatHoraireJour(schedule)}
+                          </span>
+                        </React.Fragment>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    {settingsUnavailable
+                      ? 'Les informations sont temporairement indisponibles.'
+                      : 'Aucune donnee publiee pour le moment.'}
+                  </p>
+                )}
               </div>
             </motion.div>
 
@@ -93,7 +123,7 @@ export default function MairiePage() {
             >
               <Image
                 src="/images/mairie-villiers-adam.jpg"
-                alt="Mairie de Villiers-Adam"
+                alt={`Mairie de ${siteName}`}
                 fill
                 className="object-cover"
                 priority
@@ -116,7 +146,7 @@ export default function MairiePage() {
                 transition={{ duration: 0.4, delay: index * 0.1 }}
               >
                 <Link
-                  href={`/mairie/${section.slug}`}
+                  href={section.href}
                   className="group block p-6 bg-background border border-border/50 rounded-organic transition-all duration-300 hover:border-villiers-gold/30 hover:shadow-organic-hover h-full"
                 >
                   <div className={cn(
@@ -157,7 +187,7 @@ export default function MairiePage() {
                   <h2 className="text-2xl font-heading font-semibold text-foreground">
                     Contactez-nous
                   </h2>
-                  <p className="text-muted-foreground">Mairie de Villiers-Adam</p>
+                  <p className="text-muted-foreground">Mairie de {siteName}</p>
                 </div>
               </div>
 
@@ -168,8 +198,11 @@ export default function MairiePage() {
                     <div>
                       <p className="font-medium text-foreground">Adresse</p>
                       <p className="text-sm text-muted-foreground">
-                        1, Grande Rue<br />
-                        95840 Villiers-Adam
+                        {addressLine
+                          ? addressLine
+                          : settingsUnavailable
+                            ? 'Les informations sont temporairement indisponibles.'
+                            : 'Aucune donnee publiee pour le moment.'}
                       </p>
                     </div>
                   </div>
@@ -177,9 +210,17 @@ export default function MairiePage() {
                     <Phone className="h-5 w-5 text-villiers-gold shrink-0 mt-0.5" />
                     <div>
                       <p className="font-medium text-foreground">Téléphone</p>
-                      <a href="tel:0134699287" className="text-sm text-primary hover:underline font-mono">
-                        01 34 69 92 87
-                      </a>
+                      {contactPhone ? (
+                        <a href={`tel:${contactPhone.replace(/\s/g, '')}`} className="text-sm text-primary hover:underline font-mono">
+                          {contactPhone}
+                        </a>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          {settingsUnavailable
+                            ? 'Les informations sont temporairement indisponibles.'
+                            : 'Aucune donnee publiee pour le moment.'}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -189,9 +230,17 @@ export default function MairiePage() {
                     <Mail className="h-5 w-5 text-villiers-gold shrink-0 mt-0.5" />
                     <div>
                       <p className="font-medium text-foreground">Email</p>
-                      <a href="mailto:mairie@villiers-adam.fr" className="text-sm text-primary hover:underline">
-                        mairie@villiers-adam.fr
-                      </a>
+                      {contactEmail ? (
+                        <a href={`mailto:${contactEmail}`} className="text-sm text-primary hover:underline">
+                          {contactEmail}
+                        </a>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          {settingsUnavailable
+                            ? 'Les informations sont temporairement indisponibles.'
+                            : 'Aucune donnee publiee pour le moment.'}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>

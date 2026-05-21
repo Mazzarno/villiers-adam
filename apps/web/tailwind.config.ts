@@ -105,6 +105,10 @@ const config: Config = {
           from: { transform: 'translateX(0)' },
           to: { transform: 'translateX(-50%)' },
         },
+        'marquee-fast': {
+          from: { transform: 'translateX(0)' },
+          to: { transform: 'translateX(-50%)' },
+        },
         // Nouvelles animations sophistiquées
         'reveal-up': {
           from: {
@@ -154,6 +158,18 @@ const config: Config = {
           from: { opacity: '0', transform: 'scale(0.9)' },
           to: { opacity: '1', transform: 'scale(1)' },
         },
+        'fade-in-blur': {
+          from: { opacity: '0', filter: 'blur(8px)' },
+          to: { opacity: '1', filter: 'blur(0)' },
+        },
+        'slide-up-stagger': {
+          from: { opacity: '0', transform: 'translateY(24px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        'count-up': {
+          from: { opacity: '0', transform: 'translateY(10px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       animation: {
         'fade-in': 'fade-in 0.5s ease-out',
@@ -161,6 +177,7 @@ const config: Config = {
         'slide-in-right': 'slide-in-right 0.3s ease-out',
         'slide-in-left': 'slide-in-left 0.6s cubic-bezier(0.22, 1, 0.36, 1)',
         marquee: 'marquee 30s linear infinite',
+        'marquee-fast': 'marquee-fast 10s linear infinite',
         'reveal-up': 'reveal-up 0.8s cubic-bezier(0.22, 1, 0.36, 1)',
         'reveal-left': 'reveal-left 0.8s cubic-bezier(0.22, 1, 0.36, 1)',
         'underline-expand': 'underline-expand 0.3s ease-out forwards',
@@ -169,6 +186,9 @@ const config: Config = {
         'blink': 'blink 1s step-end infinite',
         'pulse-soft': 'pulse-soft 2s ease-in-out infinite',
         'scale-in': 'scale-in 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
+        'fade-in-blur': 'fade-in-blur 0.6s cubic-bezier(0.22, 1, 0.36, 1)',
+        'slide-up-stagger': 'slide-up-stagger 0.5s cubic-bezier(0.22, 1, 0.36, 1)',
+        'count-up': 'count-up 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
       },
       boxShadow: {
         'organic': '0 1px 3px rgb(0 0 0 / 0.08)',

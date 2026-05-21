@@ -23,6 +23,7 @@ const sections = [
     icon: Info,
     color: 'bg-red-50 text-red-600 border-red-200 dark:bg-red-950/30 dark:border-red-900',
     featured: true,
+    href: '/infos-pratiques',
   },
   {
     slug: 'ecole',
@@ -30,6 +31,7 @@ const sections = [
     description: 'Petite enfance, école primaire, restauration, centre de loisirs, collège et lycée',
     icon: GraduationCap,
     color: 'bg-villiers-blue/10 text-villiers-blue border-villiers-blue/20',
+    href: '/ecole',
   },
   {
     slug: 'transports',
@@ -37,6 +39,7 @@ const sections = [
     description: 'Transport scolaire, bus, trains et mobilité douce',
     icon: Bus,
     color: 'bg-blue-50 text-blue-600 border-blue-200 dark:bg-blue-950/30 dark:border-blue-900',
+    href: '/transports',
   },
   {
     slug: 'commerces',
@@ -44,6 +47,7 @@ const sections = [
     description: 'Annuaire des commerces et sociétés locales',
     icon: Building,
     color: 'bg-villiers-gold/10 text-villiers-gold border-villiers-gold/20',
+    href: '/commerces',
   },
   {
     slug: 'urbanisme',
@@ -51,6 +55,7 @@ const sections = [
     description: 'Permis de construire, autorisations de travaux et PLU',
     icon: Building,
     color: 'bg-villiers-green/10 text-villiers-green border-villiers-green/20',
+    href: '/urbanisme',
   },
 ];
 
@@ -143,7 +148,7 @@ export default function VieQuotidiennePage() {
                 className={cn(section.featured && 'md:col-span-2')}
               >
                 <Link
-                  href={`/vie-quotidienne/${section.slug}`}
+                  href={section.href}
                   className={cn(
                     'group block p-6 bg-background border border-border/50 rounded-organic transition-all duration-300 hover:border-villiers-gold/30 hover:shadow-organic-hover h-full',
                     section.featured && 'bg-gradient-to-r from-red-50/50 to-background dark:from-red-950/20'

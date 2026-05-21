@@ -12,3 +12,5 @@ coverage
 *.key
 *.local
 *.tmp
+*.tsbuildinfo
+test-results/

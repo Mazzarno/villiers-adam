@@ -1,9 +1,69 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const NON_REFRESHABLE_ENDPOINTS = new Set([
+  '/auth/login',
+  '/auth/mfa/verify',
+  '/auth/refresh',
+  '/auth/register',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+]);
+
+let accessTokenMemory: string | null = null;
+let refreshInFlight: Promise<string | null> | null = null;
 
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
   body?: unknown;
   headers?: Record<string, string>;
+};
+
+export type PreviewDraftCreateInput =
+  | {
+      type: 'article';
+      sourceId?: string | null;
+      data: {
+        title: string;
+        slug?: string | null;
+        summary?: string | null;
+        content?: string | null;
+        status?: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED';
+        publishedAt?: string | null;
+        createdAt?: string | null;
+        updatedAt?: string | null;
+        coverMediaId?: string | null;
+        type?: 'ACTUALITE' | 'PUBLICATION' | 'BREVE';
+        publicationType?: 'ARRETE' | 'COMPTE_RENDU' | 'DELIBERATION' | null;
+        documentMediaId?: string | null;
+        documentNumber?: string | null;
+        meetingDate?: string | null;
+        publicationYear?: number | null;
+        isFlash?: boolean;
+      };
+    }
+  | {
+      type: 'event';
+      sourceId?: string | null;
+      data: {
+        title: string;
+        slug?: string | null;
+        summary?: string | null;
+        content?: string | null;
+        status?: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED';
+        publishedAt?: string | null;
+        createdAt?: string | null;
+        updatedAt?: string | null;
+        coverMediaId?: string | null;
+        locationName?: string | null;
+        address?: string | null;
+        startsAt?: string | null;
+        endsAt?: string | null;
+      };
+    };
+
+export type PreviewDraftCreateResponse = {
+  draftToken: string;
+  expiresAt: string;
+  previewUrlPath: string;
 };
 
 class ApiError extends Error {
@@ -17,35 +77,86 @@ class ApiError extends Error {
   }
 }
 
-async function getAccessToken(): Promise<string | null> {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('accessToken');
+function shouldAttemptRefresh(endpoint: string) {
+  return !NON_REFRESHABLE_ENDPOINTS.has(endpoint);
+}
+
+export function setAccessToken(accessToken: string | null) {
+  accessTokenMemory = accessToken;
+}
+
+export function clearAccessToken() {
+  accessTokenMemory = null;
+}
+
+export function getAccessToken() {
+  return accessTokenMemory;
 }
 
 async function refreshAccessToken(): Promise<string | null> {
-  const refreshToken = localStorage.getItem('refreshToken');
-  if (!refreshToken) return null;
+  if (refreshInFlight) {
+    return refreshInFlight;
+  }
+
+  refreshInFlight = (async () => {
+    try {
+      const response = await fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({}),
+      });
+
+      if (!response.ok) {
+        clearAccessToken();
+        return null;
+      }
+
+      const data = await response.json();
+      if (!data?.accessToken || typeof data.accessToken !== 'string') {
+        clearAccessToken();
+        return null;
+      }
+
+      setAccessToken(data.accessToken);
+      return data.accessToken;
+    } catch {
+      clearAccessToken();
+      return null;
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
 
   try {
-    const response = await fetch(`${API_URL}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
-    });
-
-    if (!response.ok) {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      return null;
-    }
-
-    const data = await response.json();
-    localStorage.setItem('accessToken', data.accessToken);
-    localStorage.setItem('refreshToken', data.refreshToken);
-    return data.accessToken;
+    return await refreshInFlight;
   } catch {
+    clearAccessToken();
     return null;
   }
+}
+
+export async function getValidAccessToken() {
+  const currentToken = getAccessToken();
+  if (currentToken) return currentToken;
+  return refreshAccessToken();
+}
+
+export async function authenticatedFetch(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+) {
+  const token = await getValidAccessToken();
+  const headers = new Headers(init.headers ?? {});
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  return fetch(input, {
+    ...init,
+    headers,
+    credentials: 'include',
+  });
 }
 
 export async function api<T = unknown>(
@@ -54,13 +165,16 @@ export async function api<T = unknown>(
 ): Promise<T> {
   const { method = 'GET', body, headers = {} } = options;
 
-  let accessToken = await getAccessToken();
+  let accessToken = getAccessToken();
 
   const makeRequest = async (token: string | null) => {
     const requestHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
       ...headers,
     };
+
+    if (body !== undefined && !requestHeaders['Content-Type']) {
+      requestHeaders['Content-Type'] = 'application/json';
+    }
 
     if (token) {
       requestHeaders['Authorization'] = `Bearer ${token}`;
@@ -70,6 +184,7 @@ export async function api<T = unknown>(
       method,
       headers: requestHeaders,
       body: body ? JSON.stringify(body) : undefined,
+      credentials: 'include',
     });
 
     return response;
@@ -77,7 +192,7 @@ export async function api<T = unknown>(
 
   let response = await makeRequest(accessToken);
 
-  if (response.status === 401 && accessToken) {
+  if (response.status === 401 && shouldAttemptRefresh(endpoint)) {
     accessToken = await refreshAccessToken();
     if (accessToken) {
       response = await makeRequest(accessToken);
@@ -98,22 +213,34 @@ export async function api<T = unknown>(
 
 export const auth = {
   login: (email: string, password: string, mfaCode?: string) =>
-    api<{ accessToken?: string; refreshToken?: string; requireMfa?: boolean; mfaToken?: string }>(
+    api<{ accessToken?: string; requireMfa?: boolean; mfaToken?: string }>(
       '/auth/login',
       { method: 'POST', body: { email, password, mfaCode } },
     ),
 
   verifyMfa: (mfaToken: string, code: string) =>
-    api<{ accessToken: string; refreshToken: string }>(
+    api<{ accessToken: string }>(
       '/auth/mfa/verify',
       { method: 'POST', body: { mfaToken, code } },
     ),
 
   enableMfa: () =>
-    api<{ secret: string; qrCode: string }>('/auth/mfa/enable', { method: 'POST' }),
+    api<{ secret: string; otpauthUrl: string; qrCodeDataUrl: string }>(
+      '/auth/mfa/enable',
+      { method: 'POST' },
+    ),
+
+  confirmMfa: (code: string) =>
+    api<{ enabled: boolean }>('/auth/mfa/confirm', { method: 'POST', body: { code } }),
 
   disableMfa: (code: string) =>
-    api('/auth/mfa/disable', { method: 'POST', body: { code } }),
+    api<{ disabled: boolean }>('/auth/mfa/disable', { method: 'POST', body: { code } }),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    api<{ success: boolean }>('/auth/change-password', {
+      method: 'PATCH',
+      body: { currentPassword, newPassword },
+    }),
 
   forgotPassword: (email: string) =>
     api('/auth/forgot-password', { method: 'POST', body: { email } }),
@@ -123,27 +250,30 @@ export const auth = {
 
   me: () => api<User>('/auth/me'),
 
-  logout: () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+  restoreSession: () => refreshAccessToken(),
+
+  logout: async () => {
+    try {
+      await fetch(`${API_URL}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({}),
+      });
+    } finally {
+      clearAccessToken();
+    }
   },
 };
 
-export const pages = {
-  list: (params?: { status?: string; search?: string }) =>
-    api<Page[]>(`/pages/admin?${new URLSearchParams(params as Record<string, string>).toString()}`),
-  get: (id: string) => api<Page>(`/pages/admin/${id}`),
-  create: (data: Partial<Page>) => api<Page>('/pages', { method: 'POST', body: data }),
-  update: (id: string, data: Partial<Page>) => api<Page>(`/pages/${id}`, { method: 'PATCH', body: data }),
-  delete: (id: string) => api(`/pages/${id}`, { method: 'DELETE' }),
-  publish: (id: string) => api<Page>(`/pages/${id}/publish`, { method: 'POST' }),
-  schedule: (id: string, scheduledAt: string) =>
-    api<Page>(`/pages/${id}/schedule`, { method: 'POST', body: { scheduledAt } }),
-  archive: (id: string) => api<Page>(`/pages/${id}/archive`, { method: 'POST' }),
+export const previewDrafts = {
+  create: (data: PreviewDraftCreateInput) =>
+    api<PreviewDraftCreateResponse>('/preview-drafts', { method: 'POST', body: data }),
 };
 
+
 export const articles = {
-  list: (params?: { status?: string; search?: string; type?: ArticleType; publicationType?: PublicationType }) =>
+  list: (params?: { status?: string; search?: string; type?: ArticleType; publicationType?: PublicationType; isFlash?: boolean }) =>
     api<Article[]>(`/articles/admin?${new URLSearchParams(params as Record<string, string>).toString()}`),
   get: (id: string) => api<Article>(`/articles/admin/${id}`),
   create: (data: Partial<Article>) => api<Article>('/articles', { method: 'POST', body: data }),
@@ -194,7 +324,7 @@ export const settings = {
 };
 
 export const audit = {
-  list: (params?: { userId?: string; action?: string; entityType?: string }) =>
+  list: (params?: { userId?: string; action?: string; entity?: string }) =>
     api<AuditLog[]>(`/audit?${new URLSearchParams(params as Record<string, string>).toString()}`),
 };
 
@@ -213,18 +343,6 @@ export const users = {
   delete: (id: string) => api(`/users/${id}`, { method: 'DELETE' }),
 };
 
-export const agenda = {
-  list: (params?: { status?: string; search?: string }) =>
-    api<AgendaItem[]>(`/agenda/admin?${new URLSearchParams(params as Record<string, string>).toString()}`),
-  get: (id: string) => api<AgendaItem>(`/agenda/${id}`),
-  create: (data: Partial<AgendaItem>) => api<AgendaItem>('/agenda', { method: 'POST', body: data }),
-  update: (id: string, data: Partial<AgendaItem>) => api<AgendaItem>(`/agenda/${id}`, { method: 'PATCH', body: data }),
-  delete: (id: string) => api(`/agenda/${id}`, { method: 'DELETE' }),
-  publish: (id: string) => api<AgendaItem>(`/agenda/${id}/publish`, { method: 'POST' }),
-  schedule: (id: string, scheduledAt: string) =>
-    api<AgendaItem>(`/agenda/${id}/schedule`, { method: 'POST', body: { scheduledAt } }),
-  archive: (id: string) => api<AgendaItem>(`/agenda/${id}/archive`, { method: 'POST' }),
-};
 
 export const annuaire = {
   list: (params?: { status?: string; type?: string; search?: string }) =>
@@ -239,41 +357,18 @@ export const annuaire = {
   archive: (id: string) => api<DirectoryEntry>(`/annuaire/${id}/archive`, { method: 'POST' }),
 };
 
-export const reservations = {
-  list: (params?: { status?: string }) =>
-    api<Reservation[]>(`/reservations?${new URLSearchParams(params as Record<string, string>).toString()}`),
-  get: (id: string) => api<Reservation>(`/reservations/${id}`),
-  updateStatus: (id: string, status: string) =>
-    api<Reservation>(`/reservations/${id}/status`, { method: 'PATCH', body: { status } }),
-};
-
-export const rooms = {
-  list: () => api<Room[]>('/rooms/admin/all'),
-  get: (id: string) => api<Room>(`/rooms/admin/${id}`),
-  create: (data: Partial<Room>) => api<Room>('/rooms/admin', { method: 'POST', body: data }),
-  update: (id: string, data: Partial<Room>) => api<Room>(`/rooms/admin/${id}`, { method: 'PUT', body: data }),
-  delete: (id: string) => api(`/rooms/admin/${id}`, { method: 'DELETE' }),
-};
-
-export const forms = {
-  list: (params?: { status?: string; type?: string }) =>
-    api<FormSubmission[]>(`/forms?${new URLSearchParams(params as Record<string, string>).toString()}`),
-  get: (id: string) => api<FormSubmission>(`/forms/${id}`),
-  updateStatus: (id: string, status: string) =>
-    api<FormSubmission>(`/forms/${id}/status`, { method: 'PATCH', body: { status } }),
-};
 
 export const procedures = {
   list: (params?: { status?: string }) =>
-    api<Procedure[]>(`/procedures?${new URLSearchParams(params as Record<string, string>).toString()}`),
-  get: (id: string) => api<Procedure>(`/procedures/${id}`),
-  create: (data: Partial<Procedure>) => api<Procedure>('/procedures', { method: 'POST', body: data }),
-  update: (id: string, data: Partial<Procedure>) => api<Procedure>(`/procedures/${id}`, { method: 'PATCH', body: data }),
-  delete: (id: string) => api(`/procedures/${id}`, { method: 'DELETE' }),
-  publish: (id: string) => api<Procedure>(`/procedures/${id}/publish`, { method: 'POST' }),
+    api<Procedure[]>(`/demarches/admin?${new URLSearchParams(params as Record<string, string>).toString()}`),
+  get: (id: string) => api<Procedure>(`/demarches/admin/${id}`),
+  create: (data: Partial<Procedure>) => api<Procedure>('/demarches', { method: 'POST', body: data }),
+  update: (id: string, data: Partial<Procedure>) => api<Procedure>(`/demarches/${id}`, { method: 'PATCH', body: data }),
+  delete: (id: string) => api(`/demarches/${id}`, { method: 'DELETE' }),
+  publish: (id: string) => api<Procedure>(`/demarches/${id}/publish`, { method: 'POST' }),
   schedule: (id: string, scheduledAt: string) =>
-    api<Procedure>(`/procedures/${id}/schedule`, { method: 'POST', body: { scheduledAt } }),
-  archive: (id: string) => api<Procedure>(`/procedures/${id}/archive`, { method: 'POST' }),
+    api<Procedure>(`/demarches/${id}/schedule`, { method: 'POST', body: { scheduledAt } }),
+  archive: (id: string) => api<Procedure>(`/demarches/${id}/archive`, { method: 'POST' }),
 };
 
 export const council = {
@@ -308,6 +403,51 @@ export const municipalServices = {
     api<MunicipalService>(`/municipal-services/${id}/archive`, { method: 'POST' }),
 };
 
+export type NewsletterTopic = {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type NewsletterSubscription = {
+  id: string;
+  email: string;
+  confirmedAt?: string | null;
+  unsubscribedAt?: string | null;
+  createdAt: string;
+  topics: { topic: NewsletterTopic }[];
+};
+
+export type NewsletterStats = {
+  total: number;
+  confirmed: number;
+  unconfirmed: number;
+  unsubscribed: number;
+  byTopic: { topicId: string; topicName: string; count: number }[];
+};
+
+export const newsletters = {
+  subscriptions: (params?: { status?: string }) =>
+    api<NewsletterSubscription[]>(`/newsletters/subscriptions?${new URLSearchParams(params as Record<string, string>).toString()}`),
+  stats: () => api<NewsletterStats>('/newsletters/stats'),
+  topics: (params?: { admin?: boolean }) =>
+    api<NewsletterTopic[]>(params?.admin ? '/newsletters/topics/admin' : '/newsletters/topics'),
+  createTopic: (data: { name: string; slug: string; description?: string }) =>
+    api<NewsletterTopic>('/newsletters/topics', { method: 'POST', body: data }),
+  updateTopic: (id: string, data: Partial<NewsletterTopic>) =>
+    api<NewsletterTopic>(`/newsletters/topics/${id}`, { method: 'PATCH', body: data }),
+  deleteTopic: (id: string) =>
+    api(`/newsletters/topics/${id}`, { method: 'DELETE' }),
+  exportCsv: () => {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+    return authenticatedFetch(`${apiUrl}/newsletters/export/csv`).then((r) => r.blob());
+  },
+};
+
 export const transports = {
   list: (params?: { status?: string }) =>
     api<TransportInfo[]>(`/transports/admin?${new URLSearchParams(params as Record<string, string>).toString()}`),
@@ -327,9 +467,11 @@ export type User = {
   email: string;
   firstName: string;
   lastName: string;
+  avatarUrl?: string | null;
   role: 'SUPER_ADMIN' | 'ADMIN_MAIRIE' | 'AGENT' | 'CONTRIBUTOR' | 'READER';
   mfaEnabled: boolean;
   isActive: boolean;
+  password?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -455,6 +597,184 @@ export type Media = {
   createdAt: string;
 };
 
+export type InfosPratiquesEmergencyNumber = {
+  label: string;
+  value: string;
+  description?: string;
+  priority?: number;
+};
+
+export type InfosPratiquesWasteItem = {
+  title: string;
+  description?: string;
+  schedule?: string;
+  location?: string;
+  linkLabel?: string;
+  linkUrl?: string;
+  priority?: number;
+};
+
+export type InfosPratiquesLocalRule = {
+  title: string;
+  description: string;
+  priority?: number;
+};
+
+export type InfosPratiquesUsefulLink = {
+  label: string;
+  url: string;
+  description?: string;
+  priority?: number;
+};
+
+export type InfosPratiquesDocument = {
+  title: string;
+  description?: string;
+  mediaId?: string;
+  url?: string;
+  priority?: number;
+};
+
+export type InfosPratiquesContent = {
+  title?: string;
+  intro?: string;
+  emergencyNumbers?: InfosPratiquesEmergencyNumber[];
+  waste?: InfosPratiquesWasteItem[];
+  localRules?: InfosPratiquesLocalRule[];
+  usefulLinks?: InfosPratiquesUsefulLink[];
+  documents?: InfosPratiquesDocument[];
+  updatedAt?: string;
+};
+
+export type EcoleEnfanceLink = {
+  label: string;
+  url: string;
+};
+
+export type EcoleEnfanceDocument = {
+  title: string;
+  description?: string;
+  mediaId?: string;
+  url?: string;
+};
+
+export type EcoleEnfanceSection = {
+  key: string;
+  title: string;
+  description?: string;
+  content?: string;
+  links?: EcoleEnfanceLink[];
+  documents?: EcoleEnfanceDocument[];
+  priority?: number;
+};
+
+export type EcoleEnfanceSchoolContact = {
+  name?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  director?: string;
+};
+
+export type EcoleEnfanceContent = {
+  title?: string;
+  intro?: string;
+  schoolContact?: EcoleEnfanceSchoolContact;
+  sections?: EcoleEnfanceSection[];
+  updatedAt?: string;
+};
+
+export type RestaurationScolaireMenuFormat = 'TEXT' | 'IMAGE' | 'PDF' | 'MIXED';
+
+export type RestaurationScolaireMenu = {
+  weekLabel?: string;
+  validFrom?: string;
+  validTo?: string;
+  format?: RestaurationScolaireMenuFormat;
+  textContent?: string;
+  imageMediaId?: string;
+  imageUrl?: string;
+  pdfMediaId?: string;
+  pdfUrl?: string;
+  updatedAt?: string;
+};
+
+export type RestaurationScolaireDocument = {
+  title: string;
+  description?: string;
+  mediaId?: string;
+  url?: string;
+};
+
+export type RestaurationScolaireContent = {
+  title?: string;
+  intro?: string;
+  menuCourant?: RestaurationScolaireMenu;
+  tarifs?: string;
+  inscription?: string;
+  allergies?: string;
+  engagements?: string;
+  documents?: RestaurationScolaireDocument[];
+  updatedAt?: string;
+};
+
+export type SportsHighlight = {
+  title: string;
+  description?: string;
+  priority?: number;
+};
+
+export type SportsUsefulLink = {
+  label: string;
+  url: string;
+  description?: string;
+  priority?: number;
+};
+
+export type SportsDocument = {
+  title: string;
+  description?: string;
+  mediaId?: string;
+  url?: string;
+  priority?: number;
+};
+
+export type SportsContent = {
+  title?: string;
+  intro?: string;
+  description?: string;
+  equipmentTitle?: string;
+  associationsTitle?: string;
+  associationIds?: string[];
+  highlights?: SportsHighlight[];
+  usefulLinks?: SportsUsefulLink[];
+  documents?: SportsDocument[];
+  updatedAt?: string;
+};
+
+export type CultureLoisirsProfile = {
+  sports?: SportsContent | null;
+  [key: string]: unknown;
+};
+
+export type MunicipalityProfile = {
+  commune?: Record<string, unknown> | null;
+  contact?: Record<string, unknown> | null;
+  coordinates?: Record<string, unknown> | null;
+  horaires?: Record<string, unknown> | null;
+  maire?: Record<string, unknown> | null;
+  ecole?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
+  vieQuotidienne?: {
+    infosPratiques?: InfosPratiquesContent | null;
+    ecoleEnfance?: EcoleEnfanceContent | null;
+    restaurationScolaire?: RestaurationScolaireContent | null;
+    [key: string]: unknown;
+  } | null;
+  cultureLoisirs?: CultureLoisirsProfile | null;
+  [key: string]: unknown;
+};
+
 export type Settings = {
   id: string;
   siteName: string;
@@ -463,6 +783,7 @@ export type Settings = {
   contactEmail?: string | null;
   contactPhone?: string | null;
   address?: unknown | null;
+  municipalityProfile?: MunicipalityProfile | null;
 };
 
 export type AuditLog = {
@@ -470,8 +791,9 @@ export type AuditLog = {
   userId: string;
   user?: User;
   action: string;
-  entityType: string;
-  entityId: string;
+  entityType?: string;
+  entityId?: string | null;
+  entityTitle?: string;
   changes?: unknown;
   ip?: string;
   createdAt: string;
@@ -487,21 +809,6 @@ export type Version = {
   createdAt: string;
 };
 
-export type AgendaItem = {
-  id: string;
-  title: string;
-  description?: string;
-  type: 'COMMUNAL' | 'ASSOCIATIF' | 'DECHETS';
-  startsAt: string;
-  endsAt?: string;
-  location?: string;
-  isRecurring: boolean;
-  recurrenceRule?: string;
-  status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED';
-  publishedAt?: string;
-  scheduledAt?: string;
-  createdAt: string;
-};
 
 export type DirectoryEntry = {
   id: string;
@@ -526,46 +833,6 @@ export type DirectoryEntry = {
   createdAt: string;
 };
 
-export type Reservation = {
-  id: string;
-  roomId: string;
-  room?: { id: string; name: string };
-  startsAt: string;
-  endsAt: string;
-  requesterName: string;
-  requesterEmail: string;
-  requesterPhone?: string;
-  notes?: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
-  createdAt: string;
-};
-
-export type Room = {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  location?: string;
-  capacity?: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  _count?: {
-    reservations: number;
-  };
-};
-
-export type FormSubmission = {
-  id: string;
-  type: 'CONTACT' | 'SIGNALEMENT' | 'AUTRE';
-  status: 'NEW' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
-  subject?: string;
-  message: string;
-  name?: string;
-  email?: string;
-  phone?: string;
-  createdAt: string;
-};
 
 export type Procedure = {
   id: string;

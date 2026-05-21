@@ -4,26 +4,48 @@ import * as React from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
-  FileText,
   Newspaper,
   Calendar,
   Clock,
   ArrowRight,
   Plus,
   Image,
+  Users,
+  ClipboardList,
+  BusFront,
+  Briefcase,
+  Landmark,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatRelativeTime } from '@/lib/utils';
-import { pages, articles, events, audit, media, type Page, type Article, type Event, type AuditLog } from '@/lib/api';
+import {
+  articles,
+  events,
+  audit,
+  media,
+  annuaire,
+  procedures,
+  municipalServices,
+  transports,
+  council,
+  type Article,
+  type Event,
+  type AuditLog,
+  type DirectoryEntry,
+  type Procedure,
+  type MunicipalService,
+  type TransportInfo,
+  type CouncilMember,
+} from '@/lib/api';
 import { useAuth } from '@/lib/auth-context';
 
 const quickActions = [
   { name: 'Nouvelle actualité', href: '/content/articles/new', icon: Newspaper },
   { name: 'Nouvel événement', href: '/content/events/new', icon: Calendar },
-  { name: 'Nouvelle page', href: '/content/pages/new', icon: FileText },
+  { name: 'Accéder à l\'annuaire', href: '/annuaire', icon: Users },
   { name: 'Ajouter un média', href: '/media?upload=true', icon: Plus },
 ];
 
@@ -41,17 +63,16 @@ const item = {
 };
 
 type Stats = {
-  pagesPublished: number;
-  pagesDraft: number;
   articlesPublished: number;
   articlesDraft: number;
   eventsUpcoming: number;
   mediaCount: number;
+  directoryCount: number;
 };
 
 type PendingContent = {
   id: string;
-  type: 'page' | 'article' | 'event';
+  type: 'article' | 'event' | 'directory' | 'procedure' | 'municipalService' | 'transport' | 'council';
   title: string;
   status: string;
   updatedAt: string;
@@ -73,12 +94,19 @@ const entityLabels: Record<string, string> = {
   Article: 'actualité',
   Event: 'événement',
   Media: 'média',
+  DirectoryEntry: 'annuaire',
+  Procedure: 'démarche',
+  CouncilMember: 'conseil municipal',
+  MunicipalService: 'service municipal',
+  TransportInfo: 'transport',
+  Settings: 'paramètres',
   User: 'utilisateur',
 };
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const [stats, setStats] = React.useState<Stats | null>(null);
+  const [auditLogs, setAuditLogs] = React.useState<AuditLog[]>([]);
   const [recentActivity, setRecentActivity] = React.useState<AuditLog[]>([]);
   const [pendingContent, setPendingContent] = React.useState<PendingContent[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
@@ -88,47 +116,50 @@ export default function DashboardPage() {
       try {
         setIsLoading(true);
 
-        const [pagesList, articlesList, eventsList, auditList, mediaList] = await Promise.all([
-          pages.list().catch(() => [] as Page[]),
+        const [
+          articlesList,
+          eventsList,
+          auditList,
+          mediaList,
+          directoryList,
+          proceduresList,
+          municipalServicesList,
+          transportsList,
+          councilList,
+        ] = await Promise.all([
           articles.list().catch(() => [] as Article[]),
           events.list().catch(() => [] as Event[]),
           audit.list().catch(() => [] as AuditLog[]),
           media.list().catch(() => []),
+          annuaire.list().catch(() => [] as DirectoryEntry[]),
+          procedures.list().catch(() => [] as Procedure[]),
+          municipalServices.list().catch(() => [] as MunicipalService[]),
+          transports.list().catch(() => [] as TransportInfo[]),
+          council.list().catch(() => [] as CouncilMember[]),
         ]);
 
         const now = new Date();
-        const pagesPublished = pagesList.filter((p) => p.status === 'PUBLISHED').length;
-        const pagesDraft = pagesList.filter((p) => p.status === 'DRAFT').length;
-        const articlesPublished = articlesList.filter((a) => a.status === 'PUBLISHED').length;
-        const articlesDraft = articlesList.filter((a) => a.status === 'DRAFT').length;
+        const articlesPublished = articlesList.filter((a: Article) => a.status === 'PUBLISHED').length;
+        const articlesDraft = articlesList.filter((a: Article) => a.status === 'DRAFT').length;
         const eventsUpcoming = eventsList.filter(
-          (e) => e.status === 'PUBLISHED' && new Date(e.startsAt) > now
+          (e: Event) => e.status === 'PUBLISHED' && new Date(e.startsAt) > now
         ).length;
 
         setStats({
-          pagesPublished,
-          pagesDraft,
           articlesPublished,
           articlesDraft,
           eventsUpcoming,
           mediaCount: mediaList.length,
+          directoryCount: directoryList.length,
         });
 
+        setAuditLogs(auditList);
         setRecentActivity(auditList.slice(0, 5));
 
         const pending: PendingContent[] = [
-          ...pagesList
-            .filter((p) => p.status === 'DRAFT' || p.status === 'SCHEDULED')
-            .map((p) => ({
-              id: p.id,
-              type: 'page' as const,
-              title: p.title,
-              status: p.status,
-              updatedAt: p.updatedAt,
-            })),
           ...articlesList
-            .filter((a) => a.status === 'DRAFT' || a.status === 'SCHEDULED')
-            .map((a) => ({
+            .filter((a: Article) => a.status === 'DRAFT' || a.status === 'SCHEDULED')
+            .map((a: Article) => ({
               id: a.id,
               type: 'article' as const,
               title: a.title,
@@ -136,13 +167,58 @@ export default function DashboardPage() {
               updatedAt: a.updatedAt,
             })),
           ...eventsList
-            .filter((e) => e.status === 'DRAFT' || e.status === 'SCHEDULED')
-            .map((e) => ({
+            .filter((e: Event) => e.status === 'DRAFT' || e.status === 'SCHEDULED')
+            .map((e: Event) => ({
               id: e.id,
               type: 'event' as const,
               title: e.title,
               status: e.status,
               updatedAt: e.updatedAt,
+            })),
+          ...directoryList
+            .filter((entry: DirectoryEntry) => entry.status === 'DRAFT' || entry.status === 'SCHEDULED')
+            .map((entry: DirectoryEntry) => ({
+              id: entry.id,
+              type: 'directory' as const,
+              title: entry.name,
+              status: entry.status,
+              updatedAt: entry.createdAt,
+            })),
+          ...proceduresList
+            .filter((procedure: Procedure) => procedure.status === 'DRAFT' || procedure.status === 'SCHEDULED')
+            .map((procedure: Procedure) => ({
+              id: procedure.id,
+              type: 'procedure' as const,
+              title: procedure.title,
+              status: procedure.status,
+              updatedAt: procedure.updatedAt,
+            })),
+          ...municipalServicesList
+            .filter((service: MunicipalService) => service.status === 'DRAFT' || service.status === 'SCHEDULED')
+            .map((service: MunicipalService) => ({
+              id: service.id,
+              type: 'municipalService' as const,
+              title: service.name,
+              status: service.status,
+              updatedAt: service.updatedAt,
+            })),
+          ...transportsList
+            .filter((transport: TransportInfo) => transport.status === 'DRAFT' || transport.status === 'SCHEDULED')
+            .map((transport: TransportInfo) => ({
+              id: transport.id,
+              type: 'transport' as const,
+              title: transport.title,
+              status: transport.status,
+              updatedAt: transport.updatedAt,
+            })),
+          ...councilList
+            .filter((member: CouncilMember) => member.status === 'DRAFT' || member.status === 'SCHEDULED')
+            .map((member: CouncilMember) => ({
+              id: member.id,
+              type: 'council' as const,
+              title: member.name,
+              status: member.status,
+              updatedAt: member.updatedAt,
             })),
         ]
           .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
@@ -161,12 +237,6 @@ export default function DashboardPage() {
 
   const statsConfig = [
     {
-      name: 'Pages publiées',
-      value: stats?.pagesPublished ?? 0,
-      subtitle: `${stats?.pagesDraft ?? 0} brouillon(s)`,
-      icon: FileText,
-    },
-    {
       name: 'Actualités',
       value: stats?.articlesPublished ?? 0,
       subtitle: `${stats?.articlesDraft ?? 0} brouillon(s)`,
@@ -179,6 +249,12 @@ export default function DashboardPage() {
       icon: Calendar,
     },
     {
+      name: 'Annuaire',
+      value: stats?.directoryCount ?? 0,
+      subtitle: 'entrées',
+      icon: Users,
+    },
+    {
       name: 'Médias',
       value: stats?.mediaCount ?? 0,
       subtitle: 'fichiers',
@@ -186,36 +262,112 @@ export default function DashboardPage() {
     },
   ];
 
+  const activitySeries = React.useMemo(() => {
+    const formatter = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' });
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (6 - index));
+      const key = date.toISOString().slice(0, 10);
+      return { key, label: formatter.format(date), count: 0 };
+    });
+
+    const indexByKey = new Map(days.map((day, idx) => [day.key, idx]));
+    auditLogs.forEach((log) => {
+      const date = new Date(log.createdAt);
+      if (Number.isNaN(date.getTime())) return;
+      const key = date.toISOString().slice(0, 10);
+      const idx = indexByKey.get(key);
+      if (idx !== undefined) {
+        days[idx].count += 1;
+      }
+    });
+
+    return days;
+  }, [auditLogs]);
+
+  const maxActivityCount = Math.max(1, ...activitySeries.map((day) => day.count));
+
   const getEditUrl = (content: PendingContent) => {
     switch (content.type) {
-      case 'page':
-        return `/content/pages/${content.id}`;
       case 'article':
         return `/content/articles/${content.id}`;
       case 'event':
         return `/content/events/${content.id}`;
+      case 'directory':
+        return `/annuaire?search=${encodeURIComponent(content.title)}`;
+      case 'procedure':
+        return `/demarches?search=${encodeURIComponent(content.title)}`;
+      case 'municipalService':
+        return `/mairie/services?search=${encodeURIComponent(content.title)}`;
+      case 'transport':
+        return `/transports?search=${encodeURIComponent(content.title)}`;
+      case 'council':
+        return `/mairie/conseil?search=${encodeURIComponent(content.title)}`;
     }
   };
 
   const getTypeLabel = (type: PendingContent['type']) => {
     switch (type) {
-      case 'page':
-        return 'Page';
       case 'article':
         return 'Actualité';
       case 'event':
         return 'Événement';
+      case 'directory':
+        return 'Annuaire';
+      case 'procedure':
+        return 'Démarche';
+      case 'municipalService':
+        return 'Service municipal';
+      case 'transport':
+        return 'Transport';
+      case 'council':
+        return 'Conseil municipal';
     }
   };
 
   const getTypeIcon = (type: PendingContent['type']) => {
     switch (type) {
-      case 'page':
-        return FileText;
       case 'article':
         return Newspaper;
       case 'event':
         return Calendar;
+      case 'directory':
+        return Users;
+      case 'procedure':
+        return ClipboardList;
+      case 'municipalService':
+        return Briefcase;
+      case 'transport':
+        return BusFront;
+      case 'council':
+        return Landmark;
+    }
+  };
+
+  const getEntityUrl = (activity: AuditLog) => {
+    switch (activity.entityType) {
+      case 'Article':
+        return activity.entityId ? `/content/articles/${activity.entityId}` : undefined;
+      case 'Event':
+        return activity.entityId ? `/content/events/${activity.entityId}` : undefined;
+      case 'Media':
+        return '/media';
+      case 'DirectoryEntry':
+        return '/annuaire';
+      case 'Procedure':
+        return '/demarches';
+      case 'CouncilMember':
+        return '/mairie/conseil';
+      case 'MunicipalService':
+        return '/mairie/services';
+      case 'TransportInfo':
+        return '/transports';
+      case 'Settings':
+        return '/settings';
+      case 'User':
+        return '/settings';
+      default:
+        return undefined;
     }
   };
 
@@ -322,38 +474,87 @@ export default function DashboardPage() {
                 </p>
               ) : (
                 <div className="space-y-4">
-                  {recentActivity.map((activity) => (
-                    <div
-                      key={activity.id}
-                      className="flex items-start justify-between gap-4"
-                    >
-                      <div className="space-y-1">
-                        <p className="text-sm font-medium leading-none">
-                          {actionLabels[activity.action] || activity.action}{' '}
-                          {activity.entityType && (
-                            <span className="text-muted-foreground">
-                              d&apos;une {entityLabels[activity.entityType] || activity.entityType}
-                            </span>
-                          )}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          par {activity.user?.firstName} {activity.user?.lastName}
-                        </p>
+                  {recentActivity.map((activity) => {
+                    const url = getEntityUrl(activity);
+                    const content = (
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium leading-none">
+                            {actionLabels[activity.action] || activity.action}{' '}
+                            {activity.entityType && (
+                              <span className="text-muted-foreground">
+                                d&apos;une {entityLabels[activity.entityType] || activity.entityType}
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {activity.entityTitle || activity.entityId || '—'}
+                            {' · '}
+                            {activity.user?.firstName} {activity.user?.lastName}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Clock className="h-3 w-3 text-muted-foreground" />
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {formatRelativeTime(new Date(activity.createdAt))}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">
-                          {formatRelativeTime(new Date(activity.createdAt))}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+
+                    return url ? (
+                      <Link key={activity.id} href={url} className="block rounded-lg hover:bg-muted/50 p-2 -m-2">
+                        {content}
+                      </Link>
+                    ) : (
+                      <div key={activity.id}>{content}</div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
           </Card>
         </motion.div>
       </div>
+
+      <motion.div variants={item}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Activité sur 7 jours</CardTitle>
+            <CardDescription>Suivi du volume d&apos;actions dans l&apos;admin.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {isLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-28 w-full" />
+                <Skeleton className="h-4 w-1/3" />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-end gap-2 h-28">
+                  {activitySeries.map((day) => (
+                    <div key={day.key} className="flex-1 flex flex-col items-center gap-2">
+                      <div className="w-full rounded-md bg-muted/60 h-full flex items-end">
+                        <div
+                          className="w-full rounded-md bg-primary/70 transition-all"
+                          style={{ height: `${(day.count / maxActivityCount) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  {activitySeries.map((day) => (
+                    <span key={`${day.key}-label`} className="flex-1 text-center">
+                      {day.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Pending Items */}
       <motion.div variants={item}>

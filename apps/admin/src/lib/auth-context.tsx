@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { auth, User } from './api';
+import { auth, clearAccessToken, setAccessToken, User } from './api';
 
 interface AuthContextValue {
   user: User | null;
@@ -40,18 +40,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const refreshUser = React.useCallback(async () => {
     try {
-      const accessToken = localStorage.getItem('accessToken');
-      if (!accessToken) {
-        setUser(null);
-        return;
-      }
-
       const userData = await auth.me();
       setUser(userData);
     } catch {
       setUser(null);
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+      clearAccessToken();
     }
   }, []);
 
@@ -62,9 +55,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return { requireMfa: true, mfaToken: result.mfaToken };
     }
 
-    if (result.accessToken && result.refreshToken) {
-      localStorage.setItem('accessToken', result.accessToken);
-      localStorage.setItem('refreshToken', result.refreshToken);
+    if (result.accessToken) {
+      setAccessToken(result.accessToken);
       await refreshUser();
       router.push('/');
     }
@@ -72,29 +64,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const verifyMfa = React.useCallback(async (mfaToken: string, code: string) => {
     const result = await auth.verifyMfa(mfaToken, code);
-    localStorage.setItem('accessToken', result.accessToken);
-    localStorage.setItem('refreshToken', result.refreshToken);
+    setAccessToken(result.accessToken);
     await refreshUser();
     router.push('/');
   }, [refreshUser, router]);
 
   const logout = React.useCallback(async () => {
-    const refreshToken = localStorage.getItem('refreshToken');
-
-    if (refreshToken) {
-      try {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/auth/logout`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken }),
-        });
-      } catch {
-        // Ignore logout API errors
-      }
-    }
-
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    await auth.logout();
+    clearAccessToken();
     setUser(null);
     router.push('/login');
   }, [router]);

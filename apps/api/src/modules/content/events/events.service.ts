@@ -23,8 +23,12 @@ export class EventsService {
   ) {}
 
   async listPublished() {
+    const now = new Date();
     return this.prisma.event.findMany({
-      where: { status: ContentStatus.PUBLISHED, publishedAt: { lte: new Date() } },
+      where: {
+        status: ContentStatus.PUBLISHED,
+        OR: [{ publishedAt: { lte: now } }, { publishedAt: null }],
+      },
       orderBy: { startsAt: 'asc' },
       include: { coverMedia: true },
     });
@@ -263,10 +267,21 @@ export class EventsService {
 
   async publishScheduled() {
     const now = new Date();
-    await this.prisma.event.updateMany({
+    const ready = await this.prisma.event.findMany({
       where: { status: ContentStatus.SCHEDULED, scheduledAt: { lte: now } },
+      select: { id: true },
+    });
+
+    if (ready.length === 0) {
+      return;
+    }
+
+    await this.prisma.event.updateMany({
+      where: { id: { in: ready.map((entry) => entry.id) } },
       data: { status: ContentStatus.PUBLISHED, publishedAt: now, scheduledAt: null },
     });
+
+    await Promise.all(ready.map((entry) => this.searchService.upsertEvent(entry)));
   }
 
   private async ensureExists(id: string) {
@@ -309,7 +324,7 @@ export class EventsService {
     let candidate = slug;
     let counter = 1;
 
-    while (true) {
+    for (;;) {
       const existing = await this.prisma.event.findUnique({ where: { slug: candidate } });
       if (!existing || existing.id === excludeId) {
         return candidate;

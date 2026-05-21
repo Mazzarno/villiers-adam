@@ -15,8 +15,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { DataTable } from '@/components/content/data-table';
 import { StatusBadge } from '@/components/content/status-badge';
-import { events, type Event } from '@/lib/api';
+import { events, previewDrafts, type Event } from '@/lib/api';
+import { openSecurePreview } from '@/lib/preview';
 import { formatDate } from '@/lib/utils';
+
+const WEB_URL = process.env.NEXT_PUBLIC_WEB_URL || 'http://localhost:3000';
 
 const statusOptions = [
   { label: 'Brouillon', value: 'DRAFT' },
@@ -147,7 +150,39 @@ export default function EventsListPage() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem
-                onClick={() => window.open(`/agenda/${event.slug}`, '_blank')}
+                onClick={async () => {
+                  try {
+                    const draft = await previewDrafts.create({
+                      type: 'event',
+                      sourceId: event.id,
+                      data: {
+                        title: event.title,
+                        slug: event.slug,
+                        summary: event.summary ?? null,
+                        content:
+                          typeof event.content === 'string'
+                            ? event.content
+                            : JSON.stringify(event.content ?? ''),
+                        status: event.status,
+                        publishedAt: event.publishedAt ?? null,
+                        createdAt: event.createdAt,
+                        updatedAt: event.updatedAt,
+                        coverMediaId: event.coverMediaId ?? null,
+                        locationName: event.locationName ?? null,
+                        address: event.address ?? null,
+                        startsAt: event.startsAt ?? null,
+                        endsAt: event.endsAt ?? null,
+                      },
+                    });
+                    openSecurePreview({
+                      webUrl: WEB_URL,
+                      previewUrlPath: draft.previewUrlPath,
+                    });
+                  } catch (error) {
+                    console.error('Failed to create event preview draft:', error);
+                    alert('Prévisualisation indisponible. Vérifiez votre session admin.');
+                  }
+                }}
               >
                 <Eye className="mr-2 h-4 w-4" />
                 Prévisualiser
@@ -180,7 +215,7 @@ export default function EventsListPage() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Événements</h1>
           <p className="text-muted-foreground">
-            Gérez les événements et manifestations de votre commune
+            Gérez les événements de votre commune
           </p>
         </div>
         <Button asChild className="w-full sm:w-auto">

@@ -22,6 +22,7 @@ const sections = [
     icon: Landmark,
     color: 'bg-villiers-gold/10 text-villiers-gold border-villiers-gold/20',
     featured: true,
+    href: '/patrimoine',
   },
   {
     slug: 'associations',
@@ -29,6 +30,7 @@ const sections = [
     description: 'Vie associative, clubs et activités pour tous les âges',
     icon: Users,
     color: 'bg-villiers-blue/10 text-villiers-blue border-villiers-blue/20',
+    href: '/associations',
   },
   {
     slug: 'sports',
@@ -36,6 +38,7 @@ const sections = [
     description: 'Équipements sportifs et associations sportives',
     icon: Dumbbell,
     color: 'bg-villiers-green/10 text-villiers-green border-villiers-green/20',
+    href: '/sports',
   },
   {
     slug: 'bibliotheque',
@@ -43,6 +46,7 @@ const sections = [
     description: 'Bibliothèque municipale, horaires et catalogue',
     icon: BookOpen,
     color: 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-950/30 dark:border-orange-900',
+    href: '/bibliotheque',
   },
 ];
 
@@ -128,7 +132,7 @@ export default function CultureLoisirsPage() {
                 className={cn(section.featured && 'md:col-span-2')}
               >
                 <Link
-                  href={`/culture-loisirs/${section.slug}`}
+                  href={section.href}
                   className={cn(
                     'group block p-6 bg-background border border-border/50 rounded-organic transition-all duration-300 hover:border-villiers-gold/30 hover:shadow-organic-hover h-full',
                     section.featured && 'bg-gradient-to-r from-villiers-gold/5 to-background'

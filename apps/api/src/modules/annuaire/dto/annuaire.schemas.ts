@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { httpUrlSchema } from '../../../common/validation/url.schemas';
+
 const statusEnum = z.enum(['DRAFT', 'SCHEDULED', 'PUBLISHED', 'ARCHIVED']);
 const directoryTypeEnum = z.enum(['ASSOCIATION', 'ENTERPRISE', 'COMMERCE']);
 
@@ -9,7 +11,7 @@ export const annuaireCreateSchema = z.object({
   description: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
   email: z.string().email().optional().nullable(),
-  website: z.string().url().optional().nullable(),
+  website: httpUrlSchema.optional().nullable(),
   addressLine1: z.string().optional().nullable(),
   addressLine2: z.string().optional().nullable(),
   postalCode: z.string().optional().nullable(),

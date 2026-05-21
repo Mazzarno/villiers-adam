@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import api from '@/lib/api';
+import api, { type DirectoryEntry } from '@/lib/api';
 
 export const metadata: Metadata = {
   title: 'Commerces',
@@ -50,13 +50,11 @@ function OpeningHoursDisplay({ hours }: { hours: unknown }) {
 }
 
 export default async function CommercesPage() {
-  let commerces = [];
+  let commerces: DirectoryEntry[] = [];
 
   try {
-    const allEntries = await api.annuaire.list();
-    commerces = allEntries.filter(
-      (entry) => entry.type === 'COMMERCE' && entry.status === 'PUBLISHED'
-    );
+    const allEntries = await api.directory.list({ type: 'COMMERCE' });
+    commerces = allEntries;
   } catch (error) {
     console.error('Erreur lors du chargement des commerces:', error);
   }
@@ -104,28 +102,15 @@ export default async function CommercesPage() {
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {commerces.map((commerce) => {
-                  const hasAddress = commerce.addressLine1 || commerce.city;
-                  const cityLine = [commerce.postalCode, commerce.city]
-                    .filter(Boolean)
-                    .join(' ');
-                  const fullAddress = [
-                    commerce.addressLine1,
-                    commerce.addressLine2,
-                    cityLine,
-                  ]
-                    .filter(Boolean)
-                    .join(', ');
-
-                  return (
+                {commerces.map((commerce) => (
                     <Card
                       key={commerce.id}
                       className="overflow-hidden group hover:border-villiers-gold/30 hover:shadow-villiers transition-all duration-300"
                     >
-                      {commerce.coverMedia?.url && (
+                      {commerce.featuredImage && (
                         <div className="relative aspect-[16/9] overflow-hidden">
                           <Image
-                            src={commerce.coverMedia.url}
+                            src={commerce.featuredImage}
                             alt={commerce.name}
                             fill
                             className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -152,15 +137,14 @@ export default async function CommercesPage() {
                       </CardHeader>
 
                       <CardContent className="space-y-4">
-                        {/* Contact info */}
                         <div className="space-y-2">
-                          {hasAddress && (
+                          {commerce.address ? (
                             <div className="flex items-start gap-2 text-sm">
                               <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                              <span className="text-muted-foreground">{fullAddress}</span>
+                              <span className="text-muted-foreground">{commerce.address}</span>
                             </div>
-                          )}
-                          {commerce.phone && (
+                          ) : null}
+                          {commerce.phone ? (
                             <a
                               href={`tel:${commerce.phone}`}
                               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -168,8 +152,8 @@ export default async function CommercesPage() {
                               <Phone className="h-4 w-4 flex-shrink-0" />
                               <span>{commerce.phone}</span>
                             </a>
-                          )}
-                          {commerce.email && (
+                          ) : null}
+                          {commerce.email ? (
                             <a
                               href={`mailto:${commerce.email}`}
                               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
@@ -177,8 +161,8 @@ export default async function CommercesPage() {
                               <Mail className="h-4 w-4 flex-shrink-0" />
                               <span className="truncate">{commerce.email}</span>
                             </a>
-                          )}
-                          {commerce.website && (
+                          ) : null}
+                          {commerce.website ? (
                             <a
                               href={commerce.website}
                               target="_blank"
@@ -189,18 +173,16 @@ export default async function CommercesPage() {
                               <span className="truncate">Voir le site web</span>
                               <ExternalLink className="h-3 w-3" />
                             </a>
-                          )}
+                          ) : null}
                         </div>
 
-                        {/* Opening hours */}
-                        {commerce.openingHours && (
+                        {commerce.openingHours ? (
                           <div className="pt-4 border-t border-border/50">
                             <OpeningHoursDisplay hours={commerce.openingHours} />
                           </div>
-                        )}
+                        ) : null}
 
-                        {/* Map link if coordinates */}
-                        {commerce.latitude && commerce.longitude && (
+                        {commerce.coordinates ? (
                           <Button
                             variant="outline"
                             size="sm"
@@ -208,7 +190,7 @@ export default async function CommercesPage() {
                             asChild
                           >
                             <a
-                              href={`https://www.google.com/maps/search/?api=1&query=${commerce.latitude},${commerce.longitude}`}
+                              href={`https://www.google.com/maps/search/?api=1&query=${commerce.coordinates.lat},${commerce.coordinates.lng}`}
                               target="_blank"
                               rel="noopener noreferrer"
                             >
@@ -217,11 +199,10 @@ export default async function CommercesPage() {
                               <ExternalLink className="h-3 w-3 ml-2" />
                             </a>
                           </Button>
-                        )}
+                        ) : null}
                       </CardContent>
                     </Card>
-                  );
-                })}
+                ))}
               </div>
             </>
           )}

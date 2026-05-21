@@ -1,8 +1,9 @@
 'use client';
 
 import * as React from 'react';
+import NextImage from 'next/image';
 import { useDropzone } from 'react-dropzone';
-import { Upload, Search, Grid, List, Loader2, Image, FileText, Video, File } from 'lucide-react';
+import { Upload, Search, Grid, List, Loader2, ImageIcon, FileText, Video, File } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -35,7 +36,7 @@ interface MediaPickerProps {
 }
 
 function getFileIcon(mimeType: string) {
-  if (mimeType.startsWith('image/')) return Image;
+  if (mimeType.startsWith('image/')) return ImageIcon;
   if (mimeType.startsWith('video/')) return Video;
   if (mimeType.includes('pdf')) return FileText;
   return File;
@@ -55,13 +56,7 @@ export function MediaPicker({
   const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid');
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
 
-  React.useEffect(() => {
-    if (open) {
-      loadMedia();
-    }
-  }, [open]);
-
-  const loadMedia = async () => {
+  const loadMedia = React.useCallback(async () => {
     try {
       setIsLoading(true);
       const result = await mediaApi.list({ search: searchQuery });
@@ -71,7 +66,13 @@ export function MediaPicker({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [searchQuery]);
+
+  React.useEffect(() => {
+    if (open) {
+      loadMedia();
+    }
+  }, [open, loadMedia]);
 
   const getImageDimensions = (file: File): Promise<{ width: number; height: number } | null> => {
     return new Promise((resolve) => {
@@ -140,7 +141,7 @@ export function MediaPicker({
       setIsUploading(false);
       setUploadProgress(0);
     }
-  }, []);
+  }, [loadMedia]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -231,7 +232,7 @@ export function MediaPicker({
                 </div>
               ) : filteredMedia.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
-                  <Image className="h-12 w-12 text-muted-foreground mb-4" />
+                  <ImageIcon className="h-12 w-12 text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">Aucun média trouvé</p>
                 </div>
               ) : viewMode === 'grid' ? (
@@ -251,10 +252,13 @@ export function MediaPicker({
                         )}
                       >
                         {item.mimeType.startsWith('image/') ? (
-                          <img
+                          <NextImage
                             src={resolveMediaUrl(item.url)}
                             alt={item.alt || item.filename}
-                            className="object-cover w-full h-full"
+                            fill
+                            sizes="(max-width: 768px) 50vw, 25vw"
+                            className="object-cover"
+                            unoptimized
                           />
                         ) : (
                           <div className="flex flex-col items-center justify-center h-full bg-muted">
@@ -285,10 +289,13 @@ export function MediaPicker({
                         )}
                       >
                         {item.mimeType.startsWith('image/') ? (
-                          <img
+                          <NextImage
                             src={resolveMediaUrl(item.url)}
                             alt={item.alt || item.filename}
+                            width={48}
+                            height={48}
                             className="w-12 h-12 object-cover rounded"
+                            unoptimized
                           />
                         ) : (
                           <div className="w-12 h-12 flex items-center justify-center bg-muted rounded">

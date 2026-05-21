@@ -7,13 +7,13 @@ export const PERMISSIONS = {
   'users:delete': ['SUPER_ADMIN'],
 
   'content:create': ['SUPER_ADMIN', 'ADMIN_MAIRIE', 'AGENT', 'CONTRIBUTOR'],
-  'content:read': ['SUPER_ADMIN', 'ADMIN_MAIRIE', 'AGENT', 'CONTRIBUTOR', 'READER'],
+  'content:read': ['SUPER_ADMIN', 'ADMIN_MAIRIE', 'AGENT', 'CONTRIBUTOR'],
   'content:update': ['SUPER_ADMIN', 'ADMIN_MAIRIE', 'AGENT'],
   'content:delete': ['SUPER_ADMIN', 'ADMIN_MAIRIE'],
   'content:publish': ['SUPER_ADMIN', 'ADMIN_MAIRIE', 'AGENT'],
 
   'media:create': ['SUPER_ADMIN', 'ADMIN_MAIRIE', 'AGENT'],
-  'media:read': ['SUPER_ADMIN', 'ADMIN_MAIRIE', 'AGENT', 'CONTRIBUTOR', 'READER'],
+  'media:read': ['SUPER_ADMIN', 'ADMIN_MAIRIE', 'AGENT', 'CONTRIBUTOR'],
   'media:update': ['SUPER_ADMIN', 'ADMIN_MAIRIE', 'AGENT'],
   'media:delete': ['SUPER_ADMIN', 'ADMIN_MAIRIE'],
 
@@ -21,6 +21,7 @@ export const PERMISSIONS = {
   'settings:update': ['SUPER_ADMIN', 'ADMIN_MAIRIE'],
 
   'audit:read': ['SUPER_ADMIN', 'ADMIN_MAIRIE'],
+  'system:import': ['SUPER_ADMIN', 'ADMIN_MAIRIE'],
 } as const satisfies Record<string, UserRole[]>;
 
 export type PermissionKey = keyof typeof PERMISSIONS;

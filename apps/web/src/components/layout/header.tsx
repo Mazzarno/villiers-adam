@@ -8,7 +8,6 @@ import { motion, AnimatePresence, useScroll } from 'framer-motion';
 import {
   Menu,
   X,
-  Search,
   ChevronDown,
   Sun,
   Moon,
@@ -16,11 +15,12 @@ import {
   Eye,
   Type,
   Accessibility,
+  Building2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAccessibility, useIsMounted } from '@/contexts/accessibility-context';
-import api, { type PageMenuItem } from '@/lib/api';
+import { SITE_IDENTITY } from '@/lib/site-identity';
 
 interface NavItem {
   label: string;
@@ -33,16 +33,16 @@ const fallbackNavigation: NavItem[] = [
     label: 'La Mairie',
     href: '/mairie',
     children: [
-      { label: 'Le Maire et le Conseil', href: '/mairie/conseil-municipal' },
-      { label: 'Services municipaux', href: '/mairie/services' },
-      { label: 'Démarches administratives', href: '/mairie/demarches' },
+      { label: 'Le Maire et le Conseil', href: '/conseil-municipal' },
+      { label: 'Services municipaux', href: '/services-municipaux' },
+      { label: 'Démarches administratives', href: '/demarches' },
       {
         label: 'Publications administratives',
-        href: '/mairie/publications',
+        href: '/publications',
         children: [
-          { label: 'Arrêtés municipaux', href: '/mairie/publications/arretes' },
-          { label: 'Comptes-rendus du conseil', href: '/mairie/publications/comptes-rendus' },
-          { label: 'Délibérations', href: '/mairie/publications/deliberations' },
+          { label: 'Arrêtés municipaux', href: '/publications/arretes' },
+          { label: 'Comptes-rendus du conseil', href: '/publications/comptes-rendus' },
+          { label: 'Délibérations', href: '/publications/deliberations' },
         ],
       },
     ],
@@ -51,74 +51,118 @@ const fallbackNavigation: NavItem[] = [
     label: 'Vie quotidienne',
     href: '/vie-quotidienne',
     children: [
-      { label: 'Infos pratiques', href: '/vie-quotidienne/infos-pratiques' },
+      { label: 'Infos pratiques', href: '/infos-pratiques' },
       {
         label: 'École et enfance',
-        href: '/vie-quotidienne/ecole',
+        href: '/ecole',
         children: [
-          { label: 'Petite enfance', href: '/vie-quotidienne/ecole/petite-enfance' },
-          { label: 'École primaire', href: '/vie-quotidienne/ecole/ecole-primaire' },
-          { label: 'Restauration scolaire', href: '/vie-quotidienne/ecole/restauration-scolaire' },
-          { label: 'Centre de loisirs', href: '/vie-quotidienne/ecole/centre-de-loisirs' },
-          { label: 'Collège et lycée', href: '/vie-quotidienne/ecole/college-lycee' },
+          { label: 'Petite enfance', href: '/ecole/petite-enfance' },
+          { label: 'École primaire', href: '/ecole/ecole-primaire' },
+          { label: 'Restauration scolaire', href: '/ecole/restauration-scolaire' },
+          { label: 'Centre de loisirs', href: '/ecole/centre-de-loisirs' },
+          { label: 'Collège et lycée', href: '/ecole/college-lycee' },
         ],
       },
       {
         label: 'Transports',
-        href: '/vie-quotidienne/transports',
+        href: '/transports',
         children: [
-          { label: 'Transport scolaire', href: '/vie-quotidienne/transports/transport-scolaire' },
+          { label: 'Transport scolaire', href: '/ecole/transport-scolaire' },
         ],
       },
-      { label: 'Commerces & entreprises', href: '/vie-quotidienne/commerces' },
-      { label: 'Urbanisme', href: '/vie-quotidienne/urbanisme' },
+      { label: 'Commerces & entreprises', href: '/commerces' },
+      { label: 'Urbanisme', href: '/urbanisme' },
     ],
   },
   {
     label: 'Culture & Loisirs',
     href: '/culture-loisirs',
     children: [
-      { label: 'Associations', href: '/culture-loisirs/associations' },
-      { label: 'Sports', href: '/culture-loisirs/sports' },
-      { label: 'Patrimoine', href: '/culture-loisirs/patrimoine' },
-      { label: 'Bibliothèque', href: '/culture-loisirs/bibliotheque' },
+      { label: 'Associations', href: '/associations' },
+      { label: 'Sports', href: '/sports' },
+      { label: 'Patrimoine', href: '/patrimoine' },
+      { label: 'Bibliothèque', href: '/bibliotheque' },
     ],
   },
   { label: 'Actualités', href: '/actualites' },
-  { label: 'Agenda', href: '/agenda' },
+  { label: 'Événements', href: '/evenements' },
   { label: 'Contact', href: '/contact' },
 ];
 
-const staticNavigation: NavItem[] = [
-  { label: 'Actualités', href: '/actualites' },
-  { label: 'Agenda', href: '/agenda' },
-  { label: 'Contact', href: '/contact' },
-];
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
-const normalizeHref = (slug: string) => {
-  if (!slug) return '/';
-  return slug.startsWith('/') ? slug : `/${slug}`;
-};
+function getFocusableElements(container: HTMLElement | null): HTMLElement[] {
+  if (!container) {
+    return [];
+  }
 
-const mapMenuItem = (item: PageMenuItem): NavItem => ({
-  label: item.menuTitle || item.title,
-  href: normalizeHref(item.slug),
-  children: item.children?.map(mapMenuItem),
-});
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter((element) => {
+    const style = window.getComputedStyle(element);
+    const hiddenByStyle = style.display === 'none' || style.visibility === 'hidden';
+    const disabledByAria = element.getAttribute('aria-hidden') === 'true';
 
-const mergeNavigation = (menuItems: NavItem[], extraItems: NavItem[]) => {
-  const existing = new Set(menuItems.map((item) => item.href));
-  const merged = [...menuItems];
-  extraItems.forEach((item) => {
-    if (!existing.has(item.href)) {
-      merged.push(item);
-    }
+    return !hiddenByStyle && !disabledByAria;
   });
-  return merged;
-};
+}
 
-function AccessibilityMenu() {
+function trapFocusInContainer(
+  event: Pick<KeyboardEvent, 'key' | 'shiftKey' | 'preventDefault'>,
+  container: HTMLElement | null
+) {
+  if (event.key !== 'Tab' || !container) {
+    return;
+  }
+
+  const focusable = getFocusableElements(container);
+
+  if (focusable.length === 0) {
+    event.preventDefault();
+    container.focus();
+    return;
+  }
+
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  const active = document.activeElement as HTMLElement | null;
+
+  if (!active || !container.contains(active)) {
+    event.preventDefault();
+    first.focus();
+    return;
+  }
+
+  if (event.shiftKey && active === first) {
+    event.preventDefault();
+    last.focus();
+  }
+
+  if (!event.shiftKey && active === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function focusFirstInContainer(container: HTMLElement | null) {
+  if (!container) {
+    return;
+  }
+
+  const first = getFocusableElements(container)[0];
+  (first ?? container).focus();
+}
+
+interface AccessibilityMenuProps {
+  onOpenChange?: (open: boolean) => void;
+}
+
+function AccessibilityMenu({ onOpenChange }: AccessibilityMenuProps) {
   const [isOpen, setIsOpen] = React.useState(false);
+  const triggerRef = React.useRef<HTMLButtonElement>(null);
+  const dialogRef = React.useRef<HTMLDivElement>(null);
+  const wasOpenRef = React.useRef(false);
+  const titleId = React.useId();
+  const dialogId = React.useId();
   const mounted = useIsMounted();
   const {
     theme,
@@ -131,6 +175,51 @@ function AccessibilityMenu() {
     setHighContrast,
     resetSettings,
   } = useAccessibility();
+
+  React.useEffect(() => {
+    onOpenChange?.(isOpen);
+  }, [isOpen, onOpenChange]);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      wasOpenRef.current = true;
+      const frame = window.requestAnimationFrame(() => {
+        focusFirstInContainer(dialogRef.current);
+      });
+      return () => window.cancelAnimationFrame(frame);
+    }
+
+    if (wasOpenRef.current) {
+      triggerRef.current?.focus();
+      wasOpenRef.current = false;
+    }
+  }, [isOpen]);
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [isOpen]);
+
+  const handleDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setIsOpen(false);
+      return;
+    }
+
+    trapFocusInContainer(event, dialogRef.current);
+  };
 
   if (!mounted) {
     return (
@@ -148,12 +237,15 @@ function AccessibilityMenu() {
   return (
     <div className="relative">
       <Button
+        ref={triggerRef}
         variant="ghost"
         size="icon"
         onClick={() => setIsOpen(!isOpen)}
         className="hover:bg-villiers-gold/10 hover:text-villiers-gold transition-colors"
         aria-label="Menu accessibilité"
         aria-expanded={isOpen}
+        aria-haspopup="dialog"
+        aria-controls={dialogId}
       >
         <Accessibility className="h-5 w-5" />
       </Button>
@@ -167,18 +259,26 @@ function AccessibilityMenu() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 z-40"
+              aria-hidden="true"
               onClick={() => setIsOpen(false)}
             />
 
             <motion.div
+              ref={dialogRef}
+              id={dialogId}
               initial={{ opacity: 0, y: 8, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.96 }}
               transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
               className="absolute right-0 top-full mt-2 w-72 bg-background/95 backdrop-blur-lg border rounded-organic shadow-organic-lg py-3 z-50"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={titleId}
+              tabIndex={-1}
+              onKeyDown={handleDialogKeyDown}
             >
               <div className="px-4 pb-2 mb-2 border-b border-border/50">
-                <h3 className="font-heading font-semibold text-sm text-foreground">
+                <h3 id={titleId} className="font-heading font-semibold text-sm text-foreground">
                   Accessibilité
                 </h3>
               </div>
@@ -332,31 +432,19 @@ function AccessibilityMenu() {
 export function Header() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
-  const [searchOpen, setSearchOpen] = React.useState(false);
+  const [accessibilityMenuOpen, setAccessibilityMenuOpen] = React.useState(false);
   const [activeDropdown, setActiveDropdown] = React.useState<string | null>(null);
   const [expandedMobileItems, setExpandedMobileItems] = React.useState<string[]>([]);
-  const [menuItems, setMenuItems] = React.useState<NavItem[]>(fallbackNavigation);
-
-  React.useEffect(() => {
-    let active = true;
-    const loadMenu = async () => {
-      try {
-        const data = await api.pages.menu();
-        const mapped = data.map(mapMenuItem);
-        const merged = mergeNavigation(mapped, staticNavigation);
-        if (active && merged.length > 0) {
-          setMenuItems(merged);
-        }
-      } catch (error) {
-        console.error('Erreur chargement menu:', error);
-      }
-    };
-
-    loadMenu();
-    return () => {
-      active = false;
-    };
-  }, []);
+  const [logoFailed, setLogoFailed] = React.useState(false);
+  const mobileTriggerRef = React.useRef<HTMLButtonElement>(null);
+  const mobileDialogRef = React.useRef<HTMLDivElement>(null);
+  const mobileWasOpenRef = React.useRef(false);
+  const mobileDialogTitleId = React.useId();
+  const mobileDialogId = React.useId();
+  const menuItems = fallbackNavigation;
+  const identityTitle = SITE_IDENTITY.name;
+  const identitySubtitle = SITE_IDENTITY.subtitle;
+  const logoUrl = SITE_IDENTITY.logoSrc;
 
   // Scroll detection pour glassmorphism
   const { scrollY } = useScroll();
@@ -369,9 +457,11 @@ export function Header() {
     return () => unsubscribe();
   }, [scrollY]);
 
-  // Bloquer le scroll du body quand le menu mobile est ouvert
+  const hasOpenModalOverlay = mobileMenuOpen || accessibilityMenuOpen;
+
+  // Bloquer le scroll du body quand un overlay modal est ouvert
   React.useEffect(() => {
-    if (mobileMenuOpen) {
+    if (hasOpenModalOverlay) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
@@ -379,19 +469,43 @@ export function Header() {
     return () => {
       document.body.style.overflow = '';
     };
-  }, [mobileMenuOpen]);
+  }, [hasOpenModalOverlay]);
 
   // Fermer le menu avec Escape
   React.useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (searchOpen) setSearchOpen(false);
         if (mobileMenuOpen) setMobileMenuOpen(false);
       }
     };
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  }, [searchOpen, mobileMenuOpen]);
+  }, [mobileMenuOpen]);
+
+  React.useEffect(() => {
+    if (mobileMenuOpen) {
+      mobileWasOpenRef.current = true;
+      const frame = window.requestAnimationFrame(() => {
+        focusFirstInContainer(mobileDialogRef.current);
+      });
+      return () => window.cancelAnimationFrame(frame);
+    }
+
+    if (mobileWasOpenRef.current) {
+      mobileTriggerRef.current?.focus();
+      mobileWasOpenRef.current = false;
+    }
+  }, [mobileMenuOpen]);
+
+  const handleMobileDialogKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setMobileMenuOpen(false);
+      return;
+    }
+
+    trapFocusInContainer(event, mobileDialogRef.current);
+  };
 
   const toggleMobileExpand = (href: string) => {
     setExpandedMobileItems((prev) =>
@@ -410,26 +524,35 @@ export function Header() {
             : 'bg-background border-border'
         )}
       >
-        <div className="container flex items-center justify-between h-20">
+        <div className="container flex items-center justify-between gap-2 h-20">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-3 group">
+          <Link href="/" className="flex items-center gap-2 sm:gap-3 min-w-0 group">
             <motion.div
               whileHover={{ scale: 1.05 }}
               transition={{ type: 'spring', stiffness: 400, damping: 17 }}
             >
-              <Image
-                src="/images/blason.svg"
-                alt="Blason de Villiers-Adam"
-                width={48}
-                height={56}
-                className="h-14 w-auto"
-              />
+              {logoUrl && !logoFailed ? (
+                <Image
+                  src={logoUrl}
+                  alt={`Logo de ${identityTitle}`}
+                  width={48}
+                  height={56}
+                  className="h-14 w-auto"
+                  onError={() => setLogoFailed(true)}
+                />
+              ) : (
+                <div className="h-14 w-12 rounded-xl border border-border/60 bg-muted/50 flex items-center justify-center">
+                  <Building2 className="h-5 w-5 text-muted-foreground" />
+                </div>
+              )}
             </motion.div>
-            <div className="flex flex-col">
-              <span className="font-heading text-xl font-semibold text-primary tracking-tight">
-                Villiers-Adam
+            <div className="flex min-w-0 flex-col">
+              <span className="font-heading text-lg sm:text-xl font-semibold text-primary tracking-tight truncate">
+                {identityTitle}
               </span>
-              <span className="text-xs text-muted-foreground font-mono">Val-d&apos;Oise • 95840</span>
+              <span className="text-xs text-muted-foreground font-mono">
+                {identitySubtitle}
+              </span>
             </div>
           </Link>
 
@@ -530,28 +653,21 @@ export function Header() {
           </nav>
 
           {/* Actions */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSearchOpen(true)}
-              aria-label="Rechercher"
-              className="hover:bg-villiers-gold/10 hover:text-villiers-gold transition-colors"
-            >
-              <Search className="h-5 w-5" />
-            </Button>
-
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {/* Menu accessibilité */}
-            <AccessibilityMenu />
+            <AccessibilityMenu onOpenChange={setAccessibilityMenuOpen} />
 
             {/* Mobile menu button */}
             <Button
+              ref={mobileTriggerRef}
               variant="ghost"
               size="icon"
               className="lg:hidden hover:bg-villiers-gold/10"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               aria-label={mobileMenuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
               aria-expanded={mobileMenuOpen}
+              aria-haspopup="dialog"
+              aria-controls={mobileDialogId}
             >
               <AnimatePresence mode="wait">
                 {mobileMenuOpen ? (
@@ -591,20 +707,28 @@ export function Header() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm lg:hidden"
+              aria-hidden="true"
               onClick={() => setMobileMenuOpen(false)}
             />
 
             {/* Drawer */}
             <motion.div
+              ref={mobileDialogRef}
+              id={mobileDialogId}
               initial={{ opacity: 0, x: '100%' }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: '100%' }}
               transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
               className="fixed top-0 right-0 z-50 w-full max-w-sm h-[100svh] bg-background border-l shadow-xl lg:hidden overflow-hidden"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={mobileDialogTitleId}
+              tabIndex={-1}
+              onKeyDown={handleMobileDialogKeyDown}
             >
               {/* Header du drawer */}
               <div className="flex items-center justify-between h-20 px-6 border-b">
-                <span className="font-heading text-lg font-semibold text-primary">
+                <span id={mobileDialogTitleId} className="font-heading text-lg font-semibold text-primary">
                   Menu
                 </span>
                 <Button
@@ -717,65 +841,6 @@ export function Header() {
               </nav>
             </motion.div>
           </>
-        )}
-      </AnimatePresence>
-
-      {/* Search overlay avec design amélioré */}
-      <AnimatePresence>
-        {searchOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-villiers-blue/90 backdrop-blur-xl"
-            onClick={() => setSearchOpen(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: -40 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -40 }}
-              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="container pt-32"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="max-w-2xl mx-auto">
-                <motion.p
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className="text-white/60 text-sm mb-4 font-mono"
-                >
-                  Rechercher sur le site
-                </motion.p>
-                <form action="/recherche" method="get" className="relative">
-                  <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-6 w-6 text-white/50" />
-                  <input
-                    type="search"
-                    name="q"
-                    placeholder="Démarches, actualités, événements..."
-                    className="w-full h-16 pl-16 pr-6 text-xl bg-white/10 border border-white/20 rounded-organic text-white placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-villiers-gold focus:border-transparent"
-                    autoFocus
-                  />
-                </form>
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.2 }}
-                  className="mt-6 text-sm text-white/40 text-center"
-                >
-                  Appuyez sur <kbd className="px-2 py-1 bg-white/10 rounded text-white/60">Entrée</kbd> pour rechercher
-                  ou <kbd className="px-2 py-1 bg-white/10 rounded text-white/60">Échap</kbd> pour fermer
-                </motion.p>
-              </div>
-            </motion.div>
-            <button
-              onClick={() => setSearchOpen(false)}
-              className="absolute top-8 right-8 p-3 text-white/60 hover:text-white transition-colors"
-              aria-label="Fermer la recherche"
-            >
-              <X className="h-8 w-8" />
-            </button>
-          </motion.div>
         )}
       </AnimatePresence>
     </header>

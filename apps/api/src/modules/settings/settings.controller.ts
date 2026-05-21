@@ -7,6 +7,31 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { SettingsUpdateInput, settingsUpdateSchema } from './dto/settings.schemas';
 import { SettingsService } from './settings.service';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function normalizeString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function toPublicBranding(value: unknown) {
+  const branding = isRecord(value) ? value : {};
+  const colors = isRecord(branding.colors)
+    ? branding.colors
+    : isRecord(branding.couleurs)
+      ? branding.couleurs
+      : {};
+
+  return {
+    logo: normalizeString(branding.logo),
+    primaryColor: normalizeString(colors.primary) ?? normalizeString(colors.primaire),
+    secondaryColor: normalizeString(colors.secondary) ?? normalizeString(colors.secondaire),
+  };
+}
+
 @Controller('settings')
 export class SettingsController {
   constructor(private readonly settingsService: SettingsService) {}
@@ -16,11 +41,12 @@ export class SettingsController {
     const settings = await this.settingsService.get();
     return {
       siteName: settings.siteName,
-      branding: settings.branding,
+      branding: toPublicBranding(settings.branding),
       accessibility: settings.accessibility,
       contactEmail: settings.contactEmail,
       contactPhone: settings.contactPhone,
       address: settings.address,
+      municipalityProfile: settings.municipalityProfile,
     };
   }
 

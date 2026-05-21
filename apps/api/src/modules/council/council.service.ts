@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { ContentStatus, CouncilMemberRole, Prisma } from '@prisma/client';
 
 import { PrismaService } from '../../common/prisma/prisma.service';
@@ -20,9 +21,10 @@ export class CouncilService {
   ) {}
 
   async listPublished(params: { role?: CouncilMemberRole } = {}) {
+    const now = new Date();
     const where: Prisma.CouncilMemberWhereInput = {
       status: ContentStatus.PUBLISHED,
-      publishedAt: { lte: new Date() },
+      OR: [{ publishedAt: { lte: now } }, { publishedAt: null }],
     };
     if (params.role) {
       where.role = params.role;
@@ -153,6 +155,15 @@ export class CouncilService {
     });
 
     return this.prisma.councilMember.delete({ where: { id } });
+  }
+
+  @Cron('*/5 * * * *')
+  async publishScheduled() {
+    const now = new Date();
+    await this.prisma.councilMember.updateMany({
+      where: { status: ContentStatus.SCHEDULED, scheduledAt: { lte: now } },
+      data: { status: ContentStatus.PUBLISHED, publishedAt: now, scheduledAt: null },
+    });
   }
 
   async publish(id: string, actor: AuditContext) {

@@ -1,0 +1,78 @@
+import type { MetadataRoute } from 'next';
+
+const BASE_URL = 'https://www.villiers-adam.fr';
+
+const routes = [
+  '/',
+  '/actualites',
+  '/evenements',
+  '/annuaire',
+  '/carte',
+  '/contact',
+  '/mairie',
+  '/mairie/conseil-municipal',
+  '/mairie/services',
+  '/mairie/demarches',
+  '/mairie/publications',
+  '/mairie/publications/arretes',
+  '/mairie/publications/comptes-rendus',
+  '/mairie/publications/deliberations',
+  '/vie-quotidienne',
+  '/vie-quotidienne/infos-pratiques',
+  '/vie-quotidienne/transports',
+  '/vie-quotidienne/transports/transport-scolaire',
+  '/vie-quotidienne/commerces',
+  '/vie-quotidienne/urbanisme',
+  '/vie-quotidienne/ecole',
+  '/vie-quotidienne/ecole/petite-enfance',
+  '/vie-quotidienne/ecole/ecole-primaire',
+  '/vie-quotidienne/ecole/restauration-scolaire',
+  '/vie-quotidienne/ecole/centre-de-loisirs',
+  '/vie-quotidienne/ecole/college-lycee',
+  '/vie-quotidienne/ecole/recensement',
+  '/vie-quotidienne/ecole/transport-scolaire',
+  '/culture-loisirs',
+  '/culture-loisirs/associations',
+  '/culture-loisirs/sports',
+  '/culture-loisirs/patrimoine',
+  '/culture-loisirs/bibliotheque',
+  '/accessibilite',
+  '/mentions-legales',
+  '/confidentialite',
+  '/plan-du-site',
+  // Alias routes
+  '/conseil-municipal',
+  '/services-municipaux',
+  '/demarches',
+  '/publications',
+  '/publications/arretes',
+  '/publications/comptes-rendus',
+  '/publications/deliberations',
+  '/infos-pratiques',
+  '/transports',
+  '/commerces',
+  '/urbanisme',
+  '/ecole',
+  '/ecole/petite-enfance',
+  '/ecole/ecole-primaire',
+  '/ecole/restauration-scolaire',
+  '/ecole/centre-de-loisirs',
+  '/ecole/college-lycee',
+  '/ecole/recensement',
+  '/ecole/transport-scolaire',
+  '/associations',
+  '/sports',
+  '/patrimoine',
+  '/bibliotheque',
+];
+
+export default function sitemap(): MetadataRoute.Sitemap {
+  const now = new Date();
+
+  return routes.map((route) => ({
+    url: `${BASE_URL}${route}`,
+    lastModified: now,
+    changeFrequency: route === '/' ? 'daily' : 'weekly',
+    priority: route === '/' ? 1 : 0.7,
+  }));
+}

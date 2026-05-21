@@ -1,9 +1,10 @@
 'use client';
 
 import * as React from 'react';
-import Image from 'next/image';
+import Image, { type ImageProps } from 'next/image';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
+import useEmblaCarousel from 'embla-carousel-react';
 import {
   Landmark,
   Church,
@@ -12,7 +13,6 @@ import {
   MapPin,
   ChevronRight,
   ChevronLeft,
-  X,
   Music,
   BookOpen,
   Mountain,
@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { useAccessibility } from '@/contexts/accessibility-context';
 
 // Histoire de Villiers-Adam - Contenu réel
 const historyTimeline = [
@@ -107,36 +108,133 @@ const eglise = {
   ],
 };
 
-// Galerie d'images anciennes (à utiliser avec /images/vieux_villiers-adam/)
-const historicGallery = [
+const HISTORIC_IMAGE_FILES = [
+  'ancienne-mairie.jpg',
+  'eglise-ancienne.jpg',
+  'rue_de_bethemont.jpg',
+  'rue_de_leglise.jpg',
+  'rue_rivalaises.jpg',
+  'rue_victor_hugo.jpg',
+] as const;
+
+type HistoricImageFile = (typeof HISTORIC_IMAGE_FILES)[number];
+
+const historicGalleryMetadata: Record<
+  HistoricImageFile,
   {
-    id: 1,
-    title: 'Vue du village (début XXe)',
-    description: 'Le village au temps d\'Aristide Quillet.',
-    image: '/images/vieux_villiers-adam/village-1900.jpg',
+    title: string;
+    description: string;
+    alt: string;
+  }
+> = {
+  'ancienne-mairie.jpg': {
+    title: 'Ancienne mairie',
+    description: 'Ancien bâtiment de la mairie de Villiers-Adam.',
+    alt: 'Ancienne mairie de Villiers-Adam sur photographie historique',
   },
-  {
-    id: 2,
-    title: 'L\'église Saint-Sulpice',
-    description: 'L\'église et son parvis au début du siècle.',
-    image: '/images/vieux_villiers-adam/eglise-ancienne.jpg',
+  'eglise-ancienne.jpg': {
+    title: 'Église Saint-Sulpice',
+    description: 'Vue d’archive de l’église Saint-Sulpice et de ses abords.',
+    alt: 'Église Saint-Sulpice de Villiers-Adam sur photographie ancienne',
   },
-  {
-    id: 3,
-    title: 'La Grande Rue',
-    description: 'La rue principale avec ses commerces d\'antan.',
-    image: '/images/vieux_villiers-adam/grande-rue.jpg',
+  'rue_de_bethemont.jpg': {
+    title: 'Rue de Béthemont',
+    description: 'La rue de Béthemont telle qu’elle apparaissait autrefois.',
+    alt: 'Rue de Béthemont à Villiers-Adam sur photographie d’archive',
   },
-  {
-    id: 4,
-    title: 'Les carrières',
-    description: 'L\'exploitation des carrières de pierre.',
-    image: '/images/vieux_villiers-adam/carrieres.jpg',
+  'rue_de_leglise.jpg': {
+    title: 'Rue de l’Église',
+    description: 'Perspective historique de la rue de l’Église.',
+    alt: 'Rue de l’Église à Villiers-Adam sur photographie ancienne',
   },
-];
+  'rue_rivalaises.jpg': {
+    title: 'Rue Rivalaises',
+    description: 'Vue ancienne de la rue Rivalaises et de ses habitations.',
+    alt: 'Rue Rivalaises à Villiers-Adam sur photographie d’époque',
+  },
+  'rue_victor_hugo.jpg': {
+    title: 'Rue Victor-Hugo',
+    description: 'Rue Victor-Hugo dans le Villiers-Adam du début du XXe siècle.',
+    alt: 'Rue Victor-Hugo à Villiers-Adam sur photographie d’archive',
+  },
+};
+
+const historicGallery = HISTORIC_IMAGE_FILES.map((file, index) => ({
+  id: index,
+  image: `/images/vieux_villiers-adam/${file}`,
+  ...historicGalleryMetadata[file],
+}));
+
+function FallbackImage({ alt, fallbackIcon: Icon = Landmark, ...props }: ImageProps & { fallbackIcon?: React.ElementType }) {
+  const [error, setError] = React.useState(false);
+
+  if (error) {
+    return (
+      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-villiers-stone to-villiers-cream">
+        <Icon className="h-16 w-16 text-villiers-blue/20" />
+      </div>
+    );
+  }
+
+  return <Image {...props} alt={alt} onError={() => setError(true)} />;
+}
 
 export default function PatrimoinePage() {
-  const [selectedImage, setSelectedImage] = React.useState<number | null>(null);
+  const prefersReducedMotion = useReducedMotion();
+  const { reducedMotion: userReducedMotion } = useAccessibility();
+  const reducedMotion = prefersReducedMotion || userReducedMotion;
+  const [emblaRef, emblaApi] = useEmblaCarousel({
+    loop: historicGallery.length > 1,
+    align: 'start',
+    duration: reducedMotion ? 20 : 28,
+  });
+  const [activeIndex, setActiveIndex] = React.useState(0);
+  const [canScrollPrev, setCanScrollPrev] = React.useState(false);
+  const [canScrollNext, setCanScrollNext] = React.useState(historicGallery.length > 1);
+  const hasMultipleImages = historicGallery.length > 1;
+
+  const onScrollPrev = React.useCallback(() => {
+    emblaApi?.scrollPrev();
+  }, [emblaApi]);
+
+  const onScrollNext = React.useCallback(() => {
+    emblaApi?.scrollNext();
+  }, [emblaApi]);
+
+  const onDotClick = React.useCallback((index: number) => {
+    emblaApi?.scrollTo(index);
+  }, [emblaApi]);
+
+  const onGalleryKeyDown = React.useCallback((event: React.KeyboardEvent<HTMLElement>) => {
+    if (!hasMultipleImages) return;
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      onScrollPrev();
+    }
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      onScrollNext();
+    }
+  }, [hasMultipleImages, onScrollNext, onScrollPrev]);
+
+  React.useEffect(() => {
+    if (!emblaApi) return;
+
+    const updateNavigationState = () => {
+      setActiveIndex(emblaApi.selectedScrollSnap());
+      setCanScrollPrev(emblaApi.canScrollPrev());
+      setCanScrollNext(emblaApi.canScrollNext());
+    };
+
+    updateNavigationState();
+    emblaApi.on('select', updateNavigationState);
+    emblaApi.on('reInit', updateNavigationState);
+
+    return () => {
+      emblaApi.off('select', updateNavigationState);
+      emblaApi.off('reInit', updateNavigationState);
+    };
+  }, [emblaApi]);
 
   return (
     <div className="min-h-screen">
@@ -191,12 +289,13 @@ export default function PatrimoinePage() {
           >
             {/* Image */}
             <div className="relative aspect-[4/3] rounded-organic overflow-hidden">
-              <Image
+              <FallbackImage
                 src="/images/eglise.jpg"
-                alt="Église Saint-Sulpice de Villiers-Adam"
+                alt="Église Saint-Sulpice de Villiers-Adam, joyau du gothique flamboyant classé Monument historique depuis 1927"
                 fill
                 className="object-cover"
                 sizes="(max-width: 1024px) 100vw, 50vw"
+                fallbackIcon={Church}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
               <div className="absolute bottom-4 left-4 flex items-center gap-2">
@@ -406,32 +505,118 @@ export default function PatrimoinePage() {
             </p>
           </motion.div>
 
-          {/* Grille de la galerie */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {historicGallery.map((image, index) => (
-              <motion.button
-                key={image.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.4, delay: index * 0.1 }}
-                onClick={() => setSelectedImage(image.id)}
-                className="group relative aspect-square bg-muted rounded-organic overflow-hidden hover:ring-2 hover:ring-villiers-gold transition-all"
-              >
-                {/* Placeholder - en production, utiliser les vraies images */}
-                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-villiers-stone to-villiers-cream">
-                  <Landmark className="h-12 w-12 text-villiers-blue/20" />
+          <section
+            aria-label="Galerie historique de Villiers-Adam"
+            aria-roledescription="carousel"
+            className="space-y-5"
+            onKeyDown={onGalleryKeyDown}
+            tabIndex={0}
+          >
+            <div className="relative overflow-hidden rounded-organic border border-border/50 bg-muted/20">
+              <div ref={emblaRef} className="overflow-hidden">
+                <div className="flex touch-pan-y">
+                  {historicGallery.map((image) => (
+                    <div key={image.id} className="min-w-0 flex-[0_0_100%]">
+                      <figure className="relative">
+                        <div className="relative aspect-[16/10]">
+                          <FallbackImage
+                            src={image.image}
+                            alt={image.alt}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 90vw, 1100px"
+                          />
+                        </div>
+                        <figcaption className="border-t border-border/60 bg-background/95 px-4 py-3 sm:px-6">
+                          <p className="text-sm font-semibold text-foreground sm:text-base">
+                            {image.title}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {image.description}
+                          </p>
+                        </figcaption>
+                      </figure>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {hasMultipleImages && (
+                <>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon"
+                    onClick={onScrollPrev}
+                    disabled={!canScrollPrev}
+                    className="absolute left-3 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full shadow-md"
+                    aria-label="Image précédente"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon"
+                    onClick={onScrollNext}
+                    disabled={!canScrollNext}
+                    className="absolute right-3 top-1/2 h-10 w-10 -translate-y-1/2 rounded-full shadow-md"
+                    aria-label="Image suivante"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </Button>
+                </>
+              )}
+            </div>
+
+            {hasMultipleImages && (
+              <>
+                <div className="flex flex-wrap items-center justify-center gap-2">
+                  {historicGallery.map((image, index) => (
+                    <button
+                      key={`${image.id}-dot`}
+                      type="button"
+                      onClick={() => onDotClick(index)}
+                      aria-label={`Afficher ${image.title}`}
+                      aria-current={index === activeIndex}
+                      className={cn(
+                        'h-2.5 w-2.5 rounded-full transition-colors',
+                        index === activeIndex ? 'bg-villiers-gold' : 'bg-villiers-gold/30 hover:bg-villiers-gold/60'
+                      )}
+                    />
+                  ))}
                 </div>
 
-                {/* Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/0 to-black/0 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="absolute bottom-0 left-0 right-0 p-3">
-                    <p className="text-white text-sm font-medium truncate">{image.title}</p>
-                  </div>
+                <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+                  {historicGallery.map((image, index) => (
+                    <button
+                      key={`${image.id}-thumb`}
+                      type="button"
+                      onClick={() => onDotClick(index)}
+                      className={cn(
+                        'group overflow-hidden rounded-lg border transition',
+                        index === activeIndex
+                          ? 'border-villiers-gold ring-1 ring-villiers-gold'
+                          : 'border-border/60 hover:border-villiers-gold/40'
+                      )}
+                      aria-label={`Sélectionner la miniature ${image.title}`}
+                      aria-current={index === activeIndex}
+                    >
+                      <div className="relative aspect-[4/3]">
+                        <FallbackImage
+                          src={image.image}
+                          alt={image.alt}
+                          fill
+                          className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                          sizes="(max-width: 640px) 30vw, 12vw"
+                        />
+                      </div>
+                    </button>
+                  ))}
                 </div>
-              </motion.button>
-            ))}
-          </div>
+              </>
+            )}
+          </section>
 
           {/* Note */}
           <p className="text-center text-sm text-muted-foreground mt-8">
@@ -517,45 +702,6 @@ export default function PatrimoinePage() {
           </div>
         </div>
       </section>
-
-      {/* Modal galerie */}
-      {selectedImage !== null && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
-          onClick={() => setSelectedImage(null)}
-        >
-          <button
-            onClick={() => setSelectedImage(null)}
-            className="absolute top-4 right-4 p-2 text-white/60 hover:text-white transition-colors"
-            aria-label="Fermer"
-          >
-            <X className="h-8 w-8" />
-          </button>
-
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="max-w-3xl w-full bg-background rounded-organic overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Placeholder image agrandie */}
-            <div className="aspect-video bg-muted flex items-center justify-center">
-              <Landmark className="h-24 w-24 text-villiers-blue/20" />
-            </div>
-            <div className="p-6">
-              <h3 className="text-xl font-heading font-semibold text-foreground mb-2">
-                {historicGallery.find((i) => i.id === selectedImage)?.title}
-              </h3>
-              <p className="text-muted-foreground">
-                {historicGallery.find((i) => i.id === selectedImage)?.description}
-              </p>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
     </div>
   );
 }

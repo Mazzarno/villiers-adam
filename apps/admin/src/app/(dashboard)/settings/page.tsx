@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { ColumnDef } from '@tanstack/react-table';
-import { Save, UserPlus, Pencil, Trash2, Shield } from 'lucide-react';
+import { Save, UserPlus, Pencil, Trash2, Shield, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -71,6 +71,7 @@ type SiteForm = {
   contactEmail: string;
   contactPhone: string;
   address: string;
+  municipalityProfile: string;
 };
 
 const defaultUserForm: UserForm = {
@@ -81,6 +82,8 @@ const defaultUserForm: UserForm = {
   isActive: true,
   password: '',
 };
+
+const WEB_URL = process.env.NEXT_PUBLIC_WEB_URL || 'http://localhost:3000';
 
 export default function SettingsPage() {
   const { user, refreshUser } = useAuth();
@@ -98,6 +101,7 @@ export default function SettingsPage() {
     contactEmail: '',
     contactPhone: '',
     address: '',
+    municipalityProfile: '',
   });
   const [usersData, setUsersData] = React.useState<User[]>([]);
   const [usersLoading, setUsersLoading] = React.useState(true);
@@ -122,11 +126,15 @@ export default function SettingsPage() {
       try {
         const data = await settingsApi.get();
         const addressValue = data.address ? JSON.stringify(data.address, null, 2) : '';
+        const municipalityProfileValue = data.municipalityProfile
+          ? JSON.stringify(data.municipalityProfile, null, 2)
+          : '';
         setSiteForm({
           siteName: data.siteName || '',
           contactEmail: data.contactEmail || '',
           contactPhone: data.contactPhone || '',
           address: addressValue,
+          municipalityProfile: municipalityProfileValue,
         });
       } catch (error) {
         console.error('Failed to load settings:', error);
@@ -183,19 +191,38 @@ export default function SettingsPage() {
     }
   };
 
+  const parseMunicipalityProfile = (value: string) => {
+    if (!value.trim()) return null;
+    try {
+      const parsed = JSON.parse(value);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        throw new Error('invalid');
+      }
+      return parsed;
+    } catch {
+      throw new Error('Le profil mairie doit etre un JSON objet valide.');
+    }
+  };
+
   const handleSiteSave = async () => {
     setIsSavingSite(true);
     try {
+      const municipalityProfile = parseMunicipalityProfile(siteForm.municipalityProfile);
       await settingsApi.update({
         siteName: siteForm.siteName,
         contactEmail: siteForm.contactEmail || null,
         contactPhone: siteForm.contactPhone || null,
         address: parseAddress(siteForm.address),
+        municipalityProfile,
       });
       toast.success('Paramètres enregistrés');
     } catch (error) {
       console.error('Failed to save settings:', error);
-      toast.error('Erreur lors de l’enregistrement');
+      if (error instanceof Error && error.message) {
+        toast.error(error.message);
+      } else {
+        toast.error('Erreur lors de l’enregistrement');
+      }
     } finally {
       setIsSavingSite(false);
     }
@@ -217,7 +244,7 @@ export default function SettingsPage() {
       setUserForm(defaultUserForm);
     }
     setUserDialogOpen(true);
-  }, [setEditingUser, setUserForm, setUserDialogOpen, defaultUserForm]);
+  }, [setEditingUser, setUserForm, setUserDialogOpen]);
 
   const handleUserSave = async () => {
     setIsSavingUser(true);
@@ -410,8 +437,21 @@ export default function SettingsPage() {
         <TabsContent value="site">
           <Card>
             <CardHeader>
-              <CardTitle>Informations du site</CardTitle>
-              <CardDescription>Coordonnées et informations publiques.</CardDescription>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle>Informations du site</CardTitle>
+                  <CardDescription>Coordonnées et informations publiques.</CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.open(WEB_URL, '_blank')}
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Prévisualiser le site
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -445,6 +485,19 @@ export default function SettingsPage() {
                   value={siteForm.address}
                   onChange={(e) => setSiteForm((prev) => ({ ...prev, address: e.target.value }))}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Profil mairie (JSON)</Label>
+                <Textarea
+                  rows={12}
+                  value={siteForm.municipalityProfile}
+                  onChange={(e) =>
+                    setSiteForm((prev) => ({ ...prev, municipalityProfile: e.target.value }))
+                  }
+                />
+                <p className="text-xs text-muted-foreground">
+                  Source canonique du site public: les donnees enregistrees ici (settings API/admin).
+                </p>
               </div>
               <Button onClick={handleSiteSave} disabled={isSavingSite}>
                 <Save className="mr-2 h-4 w-4" />

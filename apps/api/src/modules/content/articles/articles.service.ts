@@ -23,9 +23,10 @@ export class ArticlesService {
   ) {}
 
   async listPublished(params: { type?: ArticleType; publicationType?: PublicationType; isFlash?: boolean } = {}) {
+    const now = new Date();
     const where: Prisma.ArticleWhereInput = {
       status: ContentStatus.PUBLISHED,
-      publishedAt: { lte: new Date() },
+      OR: [{ publishedAt: { lte: now } }, { publishedAt: null }],
     };
 
     if (params.type) {
@@ -47,7 +48,7 @@ export class ArticlesService {
     // Log pour debug
     console.log(`[ArticlesService] listPublished: found ${articles.length} articles`, {
       filters: params,
-      now: new Date().toISOString(),
+      now: now.toISOString(),
     });
 
     return articles;
@@ -58,6 +59,7 @@ export class ArticlesService {
     search?: string;
     type?: ArticleType;
     publicationType?: PublicationType;
+    isFlash?: boolean;
   }) {
     const where: Prisma.ArticleWhereInput = {};
     if (params.status) {
@@ -71,6 +73,9 @@ export class ArticlesService {
     }
     if (params.publicationType) {
       where.publicationType = params.publicationType;
+    }
+    if (params.isFlash !== undefined) {
+      where.isFlash = params.isFlash;
     }
     return this.prisma.article.findMany({ where, orderBy: { updatedAt: 'desc' } });
   }
@@ -307,10 +312,21 @@ export class ArticlesService {
 
   async publishScheduled() {
     const now = new Date();
-    await this.prisma.article.updateMany({
+    const ready = await this.prisma.article.findMany({
       where: { status: ContentStatus.SCHEDULED, scheduledAt: { lte: now } },
+      select: { id: true },
+    });
+
+    if (ready.length === 0) {
+      return;
+    }
+
+    await this.prisma.article.updateMany({
+      where: { id: { in: ready.map((entry) => entry.id) } },
       data: { status: ContentStatus.PUBLISHED, publishedAt: now, scheduledAt: null },
     });
+
+    await Promise.all(ready.map((entry) => this.searchService.upsertArticle(entry)));
   }
 
   private async ensureExists(id: string) {
@@ -353,7 +369,7 @@ export class ArticlesService {
     let candidate = slug;
     let counter = 1;
 
-    while (true) {
+    for (;;) {
       const existing = await this.prisma.article.findUnique({ where: { slug: candidate } });
       if (!existing || existing.id === excludeId) {
         return candidate;

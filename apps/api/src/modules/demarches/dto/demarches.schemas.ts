@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { httpUrlSchema } from '../../../common/validation/url.schemas';
+
 const statusEnum = z.enum(['DRAFT', 'SCHEDULED', 'PUBLISHED', 'ARCHIVED']);
 
 export const demarchesCreateSchema = z.object({
@@ -7,7 +9,7 @@ export const demarchesCreateSchema = z.object({
   summary: z.string().optional().nullable(),
   content: z.any(),
   steps: z.any().optional().nullable(),
-  externalUrl: z.string().url().optional().nullable(),
+  externalUrl: httpUrlSchema.optional().nullable(),
   status: statusEnum.optional(),
   publishedAt: z.string().datetime().optional().nullable(),
   scheduledAt: z.string().datetime().optional().nullable(),

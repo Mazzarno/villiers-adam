@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
 import { Request } from 'express';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe';
 import { RequirePermission } from '../../common/decorators/require-permission.decorator';
@@ -16,6 +17,8 @@ export class MediaController {
 
   @UseGuards(JwtAuthGuard, PermissionGuard)
   @RequirePermission('media:create')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ medium: { limit: 30, ttl: 60000 } })
   @Post('presign')
   presign(@Body(new ZodValidationPipe(mediaPresignSchema)) body: MediaPresignInput) {
     return this.mediaService.presignUpload(body);
@@ -23,6 +26,8 @@ export class MediaController {
 
   @UseGuards(JwtAuthGuard, PermissionGuard)
   @RequirePermission('media:create')
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ medium: { limit: 30, ttl: 60000 } })
   @Post('confirm')
   confirm(
     @Req() req: Request,

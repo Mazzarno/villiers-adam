@@ -15,7 +15,7 @@ interface Marker {
   icon?: 'default' | 'mairie' | 'school' | 'health' | 'shop' | 'sport';
 }
 
-interface InteractiveMapProps {
+export interface InteractiveMapProps {
   center?: { lat: number; lng: number };
   zoom?: number;
   markers?: Marker[];
@@ -29,12 +29,12 @@ const categoryColors: Record<string, string> = {
   school: '#7c3aed',
   health: '#dc2626',
   shop: '#f59e0b',
-  sport: '#22c55e',
+  sport: '#b87333',
   default: '#1e3a5f',
 };
 
 export function InteractiveMap({
-  center = { lat: 49.0833, lng: 2.3833 },
+  center = { lat: 49.064213, lng: 2.235307 },
   zoom = 15,
   markers = [],
   className,
@@ -231,38 +231,42 @@ export function InteractiveMap({
           <Button
             variant="secondary"
             size="icon"
-            className="h-10 w-10 bg-background shadow-md"
+            className="h-11 w-11 bg-background shadow-md"
             onClick={handleZoomIn}
             title="Zoomer"
+            aria-label="Zoomer la carte"
           >
-            <ZoomIn className="h-4 w-4" />
+            <ZoomIn className="h-4 w-4" aria-hidden="true" />
           </Button>
           <Button
             variant="secondary"
             size="icon"
-            className="h-10 w-10 bg-background shadow-md"
+            className="h-11 w-11 bg-background shadow-md"
             onClick={handleZoomOut}
             title="Dézoomer"
+            aria-label="Dézoomer la carte"
           >
-            <ZoomOut className="h-4 w-4" />
+            <ZoomOut className="h-4 w-4" aria-hidden="true" />
           </Button>
           <Button
             variant="secondary"
             size="icon"
-            className="h-10 w-10 bg-background shadow-md"
+            className="h-11 w-11 bg-background shadow-md"
             onClick={handleLocate}
             title="Ma position"
+            aria-label="Afficher ma position sur la carte"
           >
-            <Locate className="h-4 w-4" />
+            <Locate className="h-4 w-4" aria-hidden="true" />
           </Button>
           <Button
             variant="secondary"
             size="icon"
-            className="h-10 w-10 bg-background shadow-md"
+            className="h-11 w-11 bg-background shadow-md"
             onClick={handleResetView}
             title="Recentrer"
+            aria-label="Recentrer la carte"
           >
-            <Navigation className="h-4 w-4" />
+            <Navigation className="h-4 w-4" aria-hidden="true" />
           </Button>
         </div>
       )}

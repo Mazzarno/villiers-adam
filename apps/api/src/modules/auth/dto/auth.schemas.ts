@@ -5,7 +5,7 @@ export const registerSchema = z.object({
   password: z.string().min(8),
   firstName: z.string().min(1),
   lastName: z.string().min(1),
-  role: z.enum(['SUPER_ADMIN', 'ADMIN_MAIRIE', 'AGENT', 'CONTRIBUTOR', 'READER']).optional(),
+  registrationToken: z.string().min(1).optional(),
 });
 
 export const loginSchema = z.object({
@@ -14,11 +14,11 @@ export const loginSchema = z.object({
 });
 
 export const refreshSchema = z.object({
-  refreshToken: z.string().min(1),
+  refreshToken: z.string().min(1).optional(),
 });
 
 export const logoutSchema = z.object({
-  refreshToken: z.string().min(1),
+  refreshToken: z.string().min(1).optional(),
 });
 
 export const forgotPasswordSchema = z.object({
@@ -28,6 +28,11 @@ export const forgotPasswordSchema = z.object({
 export const resetPasswordSchema = z.object({
   token: z.string().min(1),
   password: z.string().min(8),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8),
 });
 
 export const mfaVerifySchema = z.object({
@@ -49,6 +54,7 @@ export type RefreshInput = z.infer<typeof refreshSchema>;
 export type LogoutInput = z.infer<typeof logoutSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type MfaVerifyInput = z.infer<typeof mfaVerifySchema>;
 export type MfaConfirmInput = z.infer<typeof mfaConfirmSchema>;
 export type MfaDisableInput = z.infer<typeof mfaDisableSchema>;

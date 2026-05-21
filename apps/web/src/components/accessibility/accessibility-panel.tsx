@@ -37,9 +37,9 @@ export function AccessibilityPanel() {
   if (!mounted) return null;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 min-w-0">
       {/* Theme */}
-      <Card>
+      <Card className="min-w-0">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Sun className="h-5 w-5" />
@@ -48,11 +48,11 @@ export function AccessibilityPanel() {
           <CardDescription>Choisissez le thème de couleurs du site</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <button
               onClick={() => setTheme('light')}
               className={cn(
-                'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors',
+                'flex min-h-11 min-w-0 flex-col items-center gap-2 p-3 rounded-lg border-2 transition-colors',
                 theme === 'light'
                   ? 'border-primary bg-primary/5'
                   : 'border-transparent bg-muted hover:bg-muted/80'
@@ -65,7 +65,7 @@ export function AccessibilityPanel() {
             <button
               onClick={() => setTheme('dark')}
               className={cn(
-                'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors',
+                'flex min-h-11 min-w-0 flex-col items-center gap-2 p-3 rounded-lg border-2 transition-colors',
                 theme === 'dark'
                   ? 'border-primary bg-primary/5'
                   : 'border-transparent bg-muted hover:bg-muted/80'
@@ -78,7 +78,7 @@ export function AccessibilityPanel() {
             <button
               onClick={() => setTheme('system')}
               className={cn(
-                'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors',
+                'flex min-h-11 min-w-0 flex-col items-center gap-2 p-3 rounded-lg border-2 transition-colors',
                 theme === 'system'
                   ? 'border-primary bg-primary/5'
                   : 'border-transparent bg-muted hover:bg-muted/80'
@@ -93,7 +93,7 @@ export function AccessibilityPanel() {
       </Card>
 
       {/* Font size */}
-      <Card>
+      <Card className="min-w-0">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Type className="h-5 w-5" />
@@ -102,13 +102,13 @@ export function AccessibilityPanel() {
           <CardDescription>Ajustez la taille de la police pour faciliter la lecture</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {(['normal', 'large', 'xlarge'] as TextSize[]).map((size) => (
               <button
                 key={size}
                 onClick={() => setTextSize(size)}
                 className={cn(
-                  'flex flex-col items-center gap-2 p-4 rounded-lg border-2 transition-colors',
+                  'flex min-h-11 min-w-0 flex-col items-center gap-2 p-3 rounded-lg border-2 transition-colors',
                   textSize === size
                     ? 'border-primary bg-primary/5'
                     : 'border-transparent bg-muted hover:bg-muted/80'
@@ -120,7 +120,7 @@ export function AccessibilityPanel() {
                   size === 'large' && 'text-lg',
                   size === 'xlarge' && 'text-xl'
                 )}>Aa</span>
-                <span className="text-sm">
+                <span className="text-xs sm:text-sm text-center break-words leading-tight">
                   {size === 'normal' && 'Normal'}
                   {size === 'large' && 'Grand'}
                   {size === 'xlarge' && 'Très grand'}
@@ -133,7 +133,7 @@ export function AccessibilityPanel() {
       </Card>
 
       {/* Accessibility modes */}
-      <Card>
+      <Card className="min-w-0">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Eye className="h-5 w-5" />
@@ -142,12 +142,12 @@ export function AccessibilityPanel() {
           <CardDescription>Activez les options adaptées à vos besoins</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <label className="flex items-center justify-between p-4 bg-muted rounded-lg cursor-pointer hover:bg-muted/80 transition-colors">
-            <div className="flex items-center gap-3">
+          <label className="flex items-center justify-between gap-3 p-4 bg-muted rounded-lg cursor-pointer hover:bg-muted/80 transition-colors">
+            <div className="flex min-w-0 items-center gap-3">
               <Type className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="font-medium">Mode senior</p>
-                <p className="text-sm text-muted-foreground">
+              <div className="min-w-0">
+                <p className="font-medium break-words">Mode senior</p>
+                <p className="text-sm text-muted-foreground break-words">
                   Texte agrandi et espacement augmenté
                 </p>
               </div>
@@ -156,16 +156,16 @@ export function AccessibilityPanel() {
               type="checkbox"
               checked={seniorMode}
               onChange={(e) => setSeniorMode(e.target.checked)}
-              className="h-5 w-5 rounded border-input accent-primary"
+              className="h-5 w-5 shrink-0 rounded border-input accent-primary"
             />
           </label>
 
-          <label className="flex items-center justify-between p-4 bg-muted rounded-lg cursor-pointer hover:bg-muted/80 transition-colors">
-            <div className="flex items-center gap-3">
+          <label className="flex items-center justify-between gap-3 p-4 bg-muted rounded-lg cursor-pointer hover:bg-muted/80 transition-colors">
+            <div className="flex min-w-0 items-center gap-3">
               <Eye className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="font-medium">Mode dyslexie</p>
-                <p className="text-sm text-muted-foreground">
+              <div className="min-w-0">
+                <p className="font-medium break-words">Mode dyslexie</p>
+                <p className="text-sm text-muted-foreground break-words">
                   Police OpenDyslexic et espacement des lettres
                 </p>
               </div>
@@ -174,16 +174,16 @@ export function AccessibilityPanel() {
               type="checkbox"
               checked={dyslexicMode}
               onChange={(e) => setDyslexicMode(e.target.checked)}
-              className="h-5 w-5 rounded border-input accent-primary"
+              className="h-5 w-5 shrink-0 rounded border-input accent-primary"
             />
           </label>
 
-          <label className="flex items-center justify-between p-4 bg-muted rounded-lg cursor-pointer hover:bg-muted/80 transition-colors">
-            <div className="flex items-center gap-3">
+          <label className="flex items-center justify-between gap-3 p-4 bg-muted rounded-lg cursor-pointer hover:bg-muted/80 transition-colors">
+            <div className="flex min-w-0 items-center gap-3">
               <Contrast className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="font-medium">Contraste élevé</p>
-                <p className="text-sm text-muted-foreground">
+              <div className="min-w-0">
+                <p className="font-medium break-words">Contraste élevé</p>
+                <p className="text-sm text-muted-foreground break-words">
                   Améliore la lisibilité des textes
                 </p>
               </div>
@@ -192,16 +192,16 @@ export function AccessibilityPanel() {
               type="checkbox"
               checked={highContrast}
               onChange={(e) => setHighContrast(e.target.checked)}
-              className="h-5 w-5 rounded border-input accent-primary"
+              className="h-5 w-5 shrink-0 rounded border-input accent-primary"
             />
           </label>
 
-          <label className="flex items-center justify-between p-4 bg-muted rounded-lg cursor-pointer hover:bg-muted/80 transition-colors">
-            <div className="flex items-center gap-3">
+          <label className="flex items-center justify-between gap-3 p-4 bg-muted rounded-lg cursor-pointer hover:bg-muted/80 transition-colors">
+            <div className="flex min-w-0 items-center gap-3">
               <Zap className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="font-medium">Réduire les animations</p>
-                <p className="text-sm text-muted-foreground">
+              <div className="min-w-0">
+                <p className="font-medium break-words">Réduire les animations</p>
+                <p className="text-sm text-muted-foreground break-words">
                   Désactive les animations et transitions
                 </p>
               </div>
@@ -210,7 +210,7 @@ export function AccessibilityPanel() {
               type="checkbox"
               checked={reducedMotion}
               onChange={(e) => setReducedMotion(e.target.checked)}
-              className="h-5 w-5 rounded border-input accent-primary"
+              className="h-5 w-5 shrink-0 rounded border-input accent-primary"
             />
           </label>
         </CardContent>

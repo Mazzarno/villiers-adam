@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useSearchParams } from 'next/navigation';
 import { ColumnDef } from '@tanstack/react-table';
 import { MoreHorizontal, Plus, ArrowUpDown, Pencil, Trash2, Archive, Send, Bus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -33,7 +34,7 @@ import {
 import { DataTable } from '@/components/content/data-table';
 import { StatusBadge } from '@/components/content/status-badge';
 import { MediaPicker } from '@/components/media/media-picker';
-import { transports, type TransportInfo, type Media } from '@/lib/api';
+import { transports, type TransportInfo, type Media, type ContentStatus } from '@/lib/api';
 import { formatDate, slugify } from '@/lib/utils';
 
 const statusOptions = [
@@ -51,7 +52,7 @@ type FormData = {
   operator: string;
   website: string;
   phone: string;
-  status: string;
+  status: ContentStatus;
   coverMediaId?: string;
 };
 
@@ -67,12 +68,14 @@ const defaultFormData: FormData = {
 };
 
 export default function TransportsPage() {
+  const searchParams = useSearchParams();
   const [data, setData] = React.useState<TransportInfo[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
   const [formData, setFormData] = React.useState<FormData>(defaultFormData);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [formError, setFormError] = React.useState('');
   const [coverMedia, setCoverMedia] = React.useState<Media | null>(null);
   const [showMediaPicker, setShowMediaPicker] = React.useState(false);
 
@@ -95,6 +98,7 @@ export default function TransportsPage() {
     setEditingId(null);
     setFormData(defaultFormData);
     setCoverMedia(null);
+    setFormError('');
     setDialogOpen(true);
   };
 
@@ -112,12 +116,19 @@ export default function TransportsPage() {
       coverMediaId: item.coverMediaId || undefined,
     });
     setCoverMedia(item.coverMedia ?? null);
+    setFormError('');
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      if (!formData.title.trim()) {
+        setFormError('Le titre est obligatoire.');
+        setIsSaving(false);
+        return;
+      }
+
       const payload = {
         ...formData,
         slug: formData.slug ? slugify(formData.slug) : undefined,
@@ -133,6 +144,11 @@ export default function TransportsPage() {
       setDialogOpen(false);
       loadData();
     } catch (error) {
+      const message =
+        (error as { data?: { message?: string } })?.data?.message ||
+        (error as Error).message ||
+        'Impossible d\'enregistrer la fiche transport.';
+      setFormError(message);
       console.error('Failed to save:', error);
     } finally {
       setIsSaving(false);
@@ -247,6 +263,16 @@ export default function TransportsPage() {
     },
   ];
 
+  const searchTerm = (searchParams.get('search') || '').trim().toLowerCase();
+  const filteredData = React.useMemo(() => {
+    if (!searchTerm) return data;
+    return data.filter((item) =>
+      [item.title, item.summary, item.operator]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(searchTerm)),
+    );
+  }, [data, searchTerm]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -260,7 +286,7 @@ export default function TransportsPage() {
         </Button>
       </div>
 
-      <DataTable columns={columns} data={data} searchKey="title" isLoading={isLoading} />
+      <DataTable columns={columns} data={filteredData} searchKey="title" isLoading={isLoading} />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[720px]">
@@ -270,6 +296,11 @@ export default function TransportsPage() {
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
+            {formError && (
+              <div className="rounded-md border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {formError}
+              </div>
+            )}
             <div className="grid gap-2">
               <Label>Titre</Label>
               <Input
@@ -335,7 +366,7 @@ export default function TransportsPage() {
                 <Label>Statut</Label>
                 <Select
                   value={formData.status}
-                  onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value }))}
+                  onValueChange={(value) => setFormData((prev) => ({ ...prev, status: value as ContentStatus }))}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -382,6 +413,7 @@ export default function TransportsPage() {
         onSelect={(media) => {
           setCoverMedia(media);
           setFormData((prev) => ({ ...prev, coverMediaId: media.id }));
+          setShowMediaPicker(false);
         }}
         accept={['image/*']}
       />
