@@ -31,17 +31,20 @@ function getRemotePattern(value) {
 const apiOrigin = getUrlOrigin(process.env.NEXT_PUBLIC_API_URL);
 const adminOrigin = getUrlOrigin(process.env.NEXT_PUBLIC_ADMIN_URL);
 const siteOrigin = getUrlOrigin(process.env.NEXT_PUBLIC_SITE_URL);
+const mediaOrigin = getUrlOrigin(process.env.NEXT_PUBLIC_MEDIA_URL || process.env.MINIO_PUBLIC_URL);
 const cspConnectSources = Array.from(
   new Set(
     [
       "'self'",
       'https://hcaptcha.com',
       'https://*.hcaptcha.com',
+      'https://www.facebook.com',
       'https://*.villiers-adam.fr',
       'http://localhost:*',
       'ws://localhost:*',
       apiOrigin,
       adminOrigin,
+      mediaOrigin,
       siteOrigin,
     ].filter(Boolean),
   ),
@@ -55,19 +58,20 @@ const mediaSources = Array.from(
       'https:',
       'http://localhost:*',
       apiOrigin,
+      mediaOrigin,
       siteOrigin,
     ].filter(Boolean),
   ),
 );
 const ContentSecurityPolicy = `default-src 'self';
-  script-src 'self' 'unsafe-inline' ${isProduction ? '' : "'unsafe-eval'"} https://js.hcaptcha.com https://hcaptcha.com;
+  script-src 'self' 'unsafe-inline' ${isProduction ? '' : "'unsafe-eval'"} https://js.hcaptcha.com https://hcaptcha.com https://connect.facebook.net;
   script-src-attr 'none';
-  style-src 'self' 'unsafe-inline';
+  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
   img-src ${mediaSources.join(' ')};
   media-src ${mediaSources.filter((value) => value !== 'data:').join(' ')};
-  font-src 'self' data:;
+  font-src 'self' data: https://fonts.gstatic.com;
   connect-src ${cspConnectSources.join(' ')};
-  frame-src https://hcaptcha.com https://*.hcaptcha.com;
+  frame-src https://hcaptcha.com https://*.hcaptcha.com https://www.facebook.com;
   object-src 'none';
   base-uri 'self';
   form-action 'self';
@@ -92,7 +96,7 @@ const securityHeaders = [
   },
   {
     key: 'Permissions-Policy',
-    value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()'
+    value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
   },
   {
     key: 'Strict-Transport-Security',
@@ -114,6 +118,7 @@ const nextConfig = {
   outputFileTracingRoot,
   transpilePackages: ['@villiers-adam/shared'],
   images: {
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
@@ -129,6 +134,7 @@ const nextConfig = {
         port: '3001',
       },
       getRemotePattern(process.env.NEXT_PUBLIC_API_URL),
+      getRemotePattern(process.env.NEXT_PUBLIC_MEDIA_URL || process.env.MINIO_PUBLIC_URL),
       getRemotePattern(process.env.NEXT_PUBLIC_SITE_URL),
     ].filter(Boolean),
   },
@@ -146,14 +152,26 @@ const nextConfig = {
       { source: '/mairie/services', destination: '/services-municipaux', permanent: true },
       { source: '/mairie/demarches', destination: '/demarches', permanent: true },
       { source: '/mairie/publications', destination: '/publications', permanent: true },
-      { source: '/mairie/publications/:path*', destination: '/publications/:path*', permanent: true },
-      { source: '/vie-quotidienne/infos-pratiques', destination: '/infos-pratiques', permanent: true },
+      {
+        source: '/mairie/publications/:path*',
+        destination: '/publications/:path*',
+        permanent: true,
+      },
+      {
+        source: '/vie-quotidienne/infos-pratiques',
+        destination: '/infos-pratiques',
+        permanent: true,
+      },
       { source: '/vie-quotidienne/transports', destination: '/transports', permanent: true },
       { source: '/vie-quotidienne/commerces', destination: '/commerces', permanent: true },
       { source: '/vie-quotidienne/urbanisme', destination: '/urbanisme', permanent: true },
       { source: '/vie-quotidienne/ecole', destination: '/ecole', permanent: true },
       { source: '/vie-quotidienne/ecole/:path*', destination: '/ecole/:path*', permanent: true },
-      { source: '/vie-quotidienne/transports/transport-scolaire', destination: '/ecole/transport-scolaire', permanent: true },
+      {
+        source: '/vie-quotidienne/transports/transport-scolaire',
+        destination: '/ecole/transport-scolaire',
+        permanent: true,
+      },
       { source: '/culture-loisirs/associations', destination: '/associations', permanent: true },
       { source: '/culture-loisirs/sports', destination: '/sports', permanent: true },
       { source: '/culture-loisirs/patrimoine', destination: '/patrimoine', permanent: true },

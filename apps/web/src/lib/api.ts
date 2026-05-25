@@ -1,4 +1,112 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+const API_URL =
+  typeof window === 'undefined' ? process.env.API_INTERNAL_URL || PUBLIC_API_URL : PUBLIC_API_URL;
+
+const STORAGE_KEY_PATTERN = /^\d{4}\/\d{2}\/[0-9a-f-]{36}-[a-z0-9-]{1,120}\.[a-z0-9]{1,10}$/i;
+const INTERNAL_API_ORIGIN =
+  typeof window === 'undefined' ? getUrlOrigin(process.env.API_INTERNAL_URL) : null;
+const PUBLIC_MEDIA_ORIGIN = getUrlOrigin(
+  process.env.NEXT_PUBLIC_MEDIA_URL || process.env.MINIO_PUBLIC_URL,
+);
+
+type MediaReference =
+  | {
+      storageKey?: string | null;
+      url?: string | null;
+    }
+  | string
+  | null
+  | undefined;
+
+function getUrlOrigin(value?: string | null) {
+  if (!value) return null;
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+}
+
+function normalizeStorageKey(value?: string | null) {
+  if (!value) return null;
+  const normalized = value.trim().replace(/^\/+/, '');
+  return STORAGE_KEY_PATTERN.test(normalized) ? normalized : null;
+}
+
+function buildPublicMediaUrl(storageKey: string) {
+  return `${PUBLIC_API_URL}/media/public/${storageKey}`;
+}
+
+function extractPublicMediaStorageKey(pathname: string) {
+  const withoutQuery = pathname.split('?')[0]?.split('#')[0] ?? pathname;
+  const trimmedPath = withoutQuery.replace(/^\/+/, '');
+  const publicMatch = trimmedPath.match(/^media\/public\/(.+)$/i);
+  if (publicMatch) {
+    return normalizeStorageKey(publicMatch[1]);
+  }
+  return null;
+}
+
+function extractBucketStorageKey(pathname: string) {
+  const withoutQuery = pathname.split('?')[0]?.split('#')[0] ?? pathname;
+  const trimmedPath = withoutQuery.replace(/^\/+/, '');
+  const bucketMatch = trimmedPath.match(/^[^/]+\/(.+)$/);
+  if (bucketMatch) {
+    return normalizeStorageKey(bucketMatch[1]);
+  }
+  return null;
+}
+
+export function normalizePublicMediaUrl(input?: MediaReference) {
+  if (!input) return undefined;
+
+  if (typeof input !== 'string') {
+    const storageKey = normalizeStorageKey(input.storageKey);
+    if (storageKey) {
+      return buildPublicMediaUrl(storageKey);
+    }
+    return normalizePublicMediaUrl(input.url);
+  }
+
+  if (input.startsWith('data:') || input.startsWith('blob:')) {
+    return input;
+  }
+
+  const directStorageKey = normalizeStorageKey(input);
+  if (directStorageKey) {
+    return buildPublicMediaUrl(directStorageKey);
+  }
+
+  if (input.startsWith('/')) {
+    const storageKey = extractPublicMediaStorageKey(input) || extractBucketStorageKey(input);
+    if (storageKey) {
+      return buildPublicMediaUrl(storageKey);
+    }
+    return `${PUBLIC_API_URL}${input}`;
+  }
+
+  try {
+    const parsed = new URL(input);
+    const publicMediaStorageKey = extractPublicMediaStorageKey(parsed.pathname);
+    if (publicMediaStorageKey) {
+      return buildPublicMediaUrl(publicMediaStorageKey);
+    }
+
+    const storageKey = extractBucketStorageKey(parsed.pathname);
+    const rewriteOrigins = new Set(
+      [getUrlOrigin(PUBLIC_API_URL), INTERNAL_API_ORIGIN, PUBLIC_MEDIA_ORIGIN].filter(Boolean),
+    );
+
+    if (storageKey && rewriteOrigins.has(parsed.origin)) {
+      return buildPublicMediaUrl(storageKey);
+    }
+
+    return input;
+  } catch {
+    return input;
+  }
+}
 
 interface FetchOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
@@ -207,12 +315,6 @@ const normalizeFlashMessage = (value?: string | null) => {
   return normalized.length > 0 ? normalized : undefined;
 };
 
-const resolveMediaUrl = (url?: string | null) => {
-  if (!url) return undefined;
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  return `${API_URL}${url}`;
-};
-
 const formatDirectoryAddress = (entry: ApiDirectoryEntry) => {
   const parts: string[] = [];
   if (entry.addressLine1) parts.push(entry.addressLine1);
@@ -229,10 +331,10 @@ const mapArticle = (article: ApiArticle): Article => ({
   slug: article.slug,
   content: normalizeContent(article.content),
   excerpt: article.summary ?? undefined,
-  featuredImage: resolveMediaUrl(article.coverMedia?.url),
+  featuredImage: normalizePublicMediaUrl(article.coverMedia),
   type: article.type ?? 'ACTUALITE',
   publicationType: article.publicationType ?? undefined,
-  documentUrl: resolveMediaUrl(article.documentMedia?.url ?? undefined),
+  documentUrl: normalizePublicMediaUrl(article.documentMedia),
   documentNumber: article.documentNumber ?? undefined,
   meetingDate: article.meetingDate ?? undefined,
   publicationYear: article.publicationYear ?? undefined,
@@ -252,13 +354,11 @@ const mapEvent = (event: ApiEvent): Event => ({
   slug: event.slug,
   description: event.summary ?? '',
   content: normalizeContent(event.content),
-  featuredImage: resolveMediaUrl(event.coverMedia?.url),
+  featuredImage: normalizePublicMediaUrl(event.coverMedia),
   location: event.locationName ?? undefined,
   address: event.address ?? undefined,
   coordinates:
-    event.latitude && event.longitude
-      ? { lat: event.latitude, lng: event.longitude }
-      : undefined,
+    event.latitude && event.longitude ? { lat: event.latitude, lng: event.longitude } : undefined,
   startDate: event.startsAt,
   endDate: event.endsAt ?? undefined,
   allDay: false,
@@ -277,11 +377,9 @@ const mapDirectoryEntry = (entry: ApiDirectoryEntry): DirectoryEntry => ({
   email: entry.email ?? undefined,
   website: entry.website ?? undefined,
   openingHours: entry.openingHours ?? undefined,
-  featuredImage: resolveMediaUrl(entry.coverMedia?.url ?? undefined),
+  featuredImage: normalizePublicMediaUrl(entry.coverMedia),
   coordinates:
-    entry.latitude && entry.longitude
-      ? { lat: entry.latitude, lng: entry.longitude }
-      : undefined,
+    entry.latitude && entry.longitude ? { lat: entry.latitude, lng: entry.longitude } : undefined,
 });
 
 const mapCouncilMember = (member: ApiCouncilMember): CouncilMember => ({
@@ -294,7 +392,7 @@ const mapCouncilMember = (member: ApiCouncilMember): CouncilMember => ({
   email: member.email ?? undefined,
   phone: member.phone ?? undefined,
   order: member.order ?? undefined,
-  photo: resolveMediaUrl(member.photoMedia?.url ?? undefined),
+  photo: normalizePublicMediaUrl(member.photoMedia),
 });
 
 const mapMunicipalService = (service: ApiMunicipalService): MunicipalService => ({
@@ -309,7 +407,7 @@ const mapMunicipalService = (service: ApiMunicipalService): MunicipalService => 
   email: service.email ?? undefined,
   website: service.website ?? undefined,
   order: service.order ?? undefined,
-  coverImage: resolveMediaUrl(service.coverMedia?.url ?? undefined),
+  coverImage: normalizePublicMediaUrl(service.coverMedia),
 });
 
 const mapTransportInfo = (info: ApiTransportInfo): TransportInfo => ({
@@ -321,7 +419,7 @@ const mapTransportInfo = (info: ApiTransportInfo): TransportInfo => ({
   operator: info.operator ?? undefined,
   website: info.website ?? undefined,
   phone: info.phone ?? undefined,
-  coverImage: resolveMediaUrl(info.coverMedia?.url ?? undefined),
+  coverImage: normalizePublicMediaUrl(info.coverMedia),
 });
 
 const mapProcedure = (procedure: ApiProcedure): Procedure => ({
@@ -332,7 +430,7 @@ const mapProcedure = (procedure: ApiProcedure): Procedure => ({
   content: normalizeContent(procedure.content),
   steps: procedure.steps ?? undefined,
   externalUrl: procedure.externalUrl ?? undefined,
-  coverImage: resolveMediaUrl(procedure.coverMedia?.url ?? undefined),
+  coverImage: normalizePublicMediaUrl(procedure.coverMedia),
 });
 
 // Types
@@ -555,7 +653,11 @@ export interface SiteConfig {
 export const api = {
   // Articles
   articles: {
-    list: async (params?: { type?: ArticleType; publicationType?: PublicationType; isFlash?: boolean }) => {
+    list: async (params?: {
+      type?: ArticleType;
+      publicationType?: PublicationType;
+      isFlash?: boolean;
+    }) => {
       const data = await fetchAPI<ApiArticle[]>('/articles', { params });
       return data.map(mapArticle);
     },
@@ -656,7 +758,9 @@ export const api = {
   // Newsletter
   newsletter: {
     topics: async () =>
-      fetchAPI<{ id: string; name: string; slug: string; description?: string }[]>('/newsletters/topics'),
+      fetchAPI<{ id: string; name: string; slug: string; description?: string }[]>(
+        '/newsletters/topics',
+      ),
     subscribe: async (data: { email: string; topicIds?: string[]; captchaToken?: string | null }) =>
       fetchAPI<{ success: boolean }>('/newsletters/subscribe', {
         method: 'POST',

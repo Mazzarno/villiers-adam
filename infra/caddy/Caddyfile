@@ -4,15 +4,17 @@
 
 {$WEB_DOMAIN} {
 	encode zstd gzip
+	tls /etc/caddy/certs/cloudflare-origin.pem /etc/caddy/certs/cloudflare-origin.key
 	reverse_proxy web:3000
 }
 
 {$ADMIN_DOMAIN} {
 	encode zstd gzip
+	tls /etc/caddy/certs/cloudflare-origin.pem /etc/caddy/certs/cloudflare-origin.key
 
 	# Optional extra gate for preprod admin.
 	# Uncomment after replacing placeholder hash with real value:
-	# basicauth {
+	# basic_auth {
 	# 	{$ADMIN_BASIC_AUTH_USER} {$ADMIN_BASIC_AUTH_PASSWORD_HASH}
 	# }
 
@@ -21,6 +23,45 @@
 
 {$API_DOMAIN} {
 	encode zstd gzip
+	tls /etc/caddy/certs/cloudflare-origin.pem /etc/caddy/certs/cloudflare-origin.key
 	reverse_proxy api:3001
 }
 
+{$MEDIA_DOMAIN} {
+	encode zstd gzip
+	tls /etc/caddy/certs/cloudflare-origin.pem /etc/caddy/certs/cloudflare-origin.key
+
+	@admin_media_origin header Origin https://{$ADMIN_DOMAIN}
+	@media_preflight {
+		method OPTIONS
+		header Origin https://{$ADMIN_DOMAIN}
+	}
+
+	handle @media_preflight {
+		header {
+			Access-Control-Allow-Origin "{http.request.header.Origin}"
+			Access-Control-Allow-Methods "GET, PUT, POST, DELETE, HEAD, OPTIONS"
+			Access-Control-Allow-Headers "Content-Type, Authorization, X-Amz-Date, X-Amz-Content-Sha256, X-Amz-Security-Token, X-Amz-User-Agent, X-Amz-Acl"
+			Access-Control-Expose-Headers "ETag"
+			Vary "Origin"
+		}
+
+		respond "" 204
+	}
+
+	header @admin_media_origin {
+		Access-Control-Allow-Origin "{http.request.header.Origin}"
+		Access-Control-Allow-Methods "GET, PUT, POST, DELETE, HEAD, OPTIONS"
+		Access-Control-Allow-Headers "Content-Type, Authorization, X-Amz-Date, X-Amz-Content-Sha256, X-Amz-Security-Token, X-Amz-User-Agent, X-Amz-Acl"
+		Access-Control-Expose-Headers "ETag"
+		Vary "Origin"
+	}
+
+	reverse_proxy minio:9000 {
+		header_down -Access-Control-Allow-Origin
+		header_down -Access-Control-Allow-Methods
+		header_down -Access-Control-Allow-Headers
+		header_down -Access-Control-Expose-Headers
+		header_down -Vary
+	}
+}

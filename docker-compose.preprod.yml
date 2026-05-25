@@ -8,6 +8,7 @@ services:
       WEB_DOMAIN: ${WEB_DOMAIN}
       ADMIN_DOMAIN: ${ADMIN_DOMAIN}
       API_DOMAIN: ${API_DOMAIN}
+      MEDIA_DOMAIN: ${MEDIA_DOMAIN}
       ADMIN_BASIC_AUTH_USER: ${ADMIN_BASIC_AUTH_USER}
       ADMIN_BASIC_AUTH_PASSWORD_HASH: ${ADMIN_BASIC_AUTH_PASSWORD_HASH}
     depends_on:
@@ -18,10 +19,11 @@ services:
       api:
         condition: service_healthy
     ports:
-      - "80:80"
-      - "443:443"
+      - '80:80'
+      - '443:443'
     volumes:
       - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./infra/caddy/certs:/etc/caddy/certs:ro
       - caddy_data:/data
       - caddy_config:/config
     restart: unless-stopped
@@ -32,6 +34,7 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      network: host
     environment:
       NODE_ENV: production
       API_PORT: 3001
@@ -46,6 +49,11 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_BUCKET: ${MINIO_BUCKET}
       MINIO_USE_SSL: ${MINIO_USE_SSL}
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT}
+      MINIO_PUBLIC_PORT: ${MINIO_PUBLIC_PORT}
+      MINIO_PUBLIC_USE_SSL: ${MINIO_PUBLIC_USE_SSL}
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
+      MINIO_REGION: ${MINIO_REGION}
       MEILI_HOST: ${MEILI_HOST}
       MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
       SMTP_HOST: ${SMTP_HOST}
@@ -78,9 +86,9 @@ services:
     healthcheck:
       test:
         [
-          "CMD",
-          "node",
-          "-e",
+          'CMD',
+          'node',
+          '-e',
           "require('node:http').get('http://127.0.0.1:3001/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1));",
         ]
       interval: 15s
@@ -92,17 +100,21 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      network: host
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NEXT_PUBLIC_ADMIN_URL: ${NEXT_PUBLIC_ADMIN_URL}
+        NEXT_PUBLIC_MEDIA_URL: ${NEXT_PUBLIC_MEDIA_URL}
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
         NEXT_PUBLIC_HCAPTCHA_SITE_KEY: ${NEXT_PUBLIC_HCAPTCHA_SITE_KEY}
     environment:
       NODE_ENV: production
       PORT: 3000
       HOSTNAME: 0.0.0.0
+      API_INTERNAL_URL: ${API_INTERNAL_URL}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
       NEXT_PUBLIC_ADMIN_URL: ${NEXT_PUBLIC_ADMIN_URL}
+      NEXT_PUBLIC_MEDIA_URL: ${NEXT_PUBLIC_MEDIA_URL}
       NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL}
       NEXT_PUBLIC_HCAPTCHA_SITE_KEY: ${NEXT_PUBLIC_HCAPTCHA_SITE_KEY}
     depends_on:
@@ -114,9 +126,9 @@ services:
     healthcheck:
       test:
         [
-          "CMD",
-          "node",
-          "-e",
+          'CMD',
+          'node',
+          '-e',
           "require('node:http').get('http://127.0.0.1:3000/', (res) => process.exit(res.statusCode >= 200 && res.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1));",
         ]
       interval: 15s
@@ -128,15 +140,20 @@ services:
     build:
       context: .
       dockerfile: apps/admin/Dockerfile
+      network: host
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NEXT_PUBLIC_WEB_URL: ${NEXT_PUBLIC_WEB_URL}
+        NEXT_PUBLIC_MEDIA_URL: ${NEXT_PUBLIC_MEDIA_URL}
+        MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
     environment:
       NODE_ENV: production
       PORT: 3002
       HOSTNAME: 0.0.0.0
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
       NEXT_PUBLIC_WEB_URL: ${NEXT_PUBLIC_WEB_URL}
+      NEXT_PUBLIC_MEDIA_URL: ${NEXT_PUBLIC_MEDIA_URL}
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
     depends_on:
       api:
         condition: service_healthy
@@ -146,15 +163,76 @@ services:
     healthcheck:
       test:
         [
-          "CMD",
-          "node",
-          "-e",
+          'CMD',
+          'node',
+          '-e',
           "require('node:http').get('http://127.0.0.1:3002/login', (res) => process.exit(res.statusCode >= 200 && res.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1));",
         ]
       interval: 15s
       timeout: 5s
       retries: 10
       start_period: 20s
+
+  api-tasks:
+    profiles: ['ops']
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: builder
+      network: host
+    environment:
+      NODE_ENV: production
+      API_PORT: 3001
+      ADMIN_PORT: 3002
+      WEB_PORT: 3000
+      TRUST_PROXY: ${TRUST_PROXY}
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_PORT: ${MINIO_PORT}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_USE_SSL: ${MINIO_USE_SSL}
+      MINIO_PUBLIC_ENDPOINT: ${MINIO_PUBLIC_ENDPOINT}
+      MINIO_PUBLIC_PORT: ${MINIO_PUBLIC_PORT}
+      MINIO_PUBLIC_USE_SSL: ${MINIO_PUBLIC_USE_SSL}
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL}
+      MINIO_REGION: ${MINIO_REGION}
+      MEILI_HOST: ${MEILI_HOST}
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      MAILJET_API_KEY: ${MAILJET_API_KEY}
+      MAILJET_SECRET_KEY: ${MAILJET_SECRET_KEY}
+      MAILJET_SENDER_EMAIL: ${MAILJET_SENDER_EMAIL}
+      MAILJET_SENDER_NAME: ${MAILJET_SENDER_NAME}
+      CONTACT_FORM_RECIPIENT: ${CONTACT_FORM_RECIPIENT}
+      HCAPTCHA_ENABLED: ${HCAPTCHA_ENABLED}
+      HCAPTCHA_SECRET_KEY: ${HCAPTCHA_SECRET_KEY}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      PUBLIC_REGISTRATION_ENABLED: ${PUBLIC_REGISTRATION_ENABLED}
+      PUBLIC_REGISTRATION_TOKEN: ${PUBLIC_REGISTRATION_TOKEN}
+      RETENTION_FORMS_DAYS: ${RETENTION_FORMS_DAYS}
+      RETENTION_RESERVATIONS_DAYS: ${RETENTION_RESERVATIONS_DAYS}
+      RETENTION_NEWSLETTER_DAYS: ${RETENTION_NEWSLETTER_DAYS}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    command:
+      [
+        'sh',
+        '-lc',
+        'pnpm --filter @villiers-adam/shared build && pnpm --filter @villiers-adam/api exec prisma migrate deploy && pnpm --filter @villiers-adam/api exec tsx prisma/seed.ts',
+      ]
+    networks:
+      - preprod
 
   postgres:
     image: postgres:16-alpine
@@ -168,7 +246,7 @@ services:
     networks:
       - preprod
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
       interval: 10s
       timeout: 5s
       retries: 10
@@ -186,7 +264,7 @@ services:
     networks:
       - preprod
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9000/minio/health/live || exit 1"]
+      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:9000/minio/health/live || exit 1']
       interval: 15s
       timeout: 5s
       retries: 10

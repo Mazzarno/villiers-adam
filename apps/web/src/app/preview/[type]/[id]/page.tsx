@@ -6,8 +6,10 @@ import { AlertTriangle, ArrowLeft } from 'lucide-react';
 import { ArticleDetailView } from '@/components/content/article-detail-view';
 import { EventDetailView } from '@/components/content/event-detail-view';
 import type { NewsItem } from '@/lib/data/news';
+import { normalizePublicMediaUrl } from '@/lib/api';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_URL = process.env.API_INTERNAL_URL || PUBLIC_API_URL;
 const ADMIN_URL = process.env.NEXT_PUBLIC_ADMIN_URL || 'http://localhost:3002';
 
 type PreviewArticleDraft = {
@@ -84,12 +86,6 @@ async function getPreviewDraft(token: string): Promise<PreviewDraftResponse | nu
   }
 }
 
-function resolveMediaUrl(url?: string | null) {
-  if (!url) return undefined;
-  if (url.startsWith('http://') || url.startsWith('https://')) return url;
-  return `${API_URL}${url}`;
-}
-
 function mapPreviewArticleToNewsItem(draft: PreviewArticleDraft): NewsItem {
   return {
     id: draft.sourceId ?? 'preview',
@@ -112,9 +108,9 @@ function mapPreviewArticleToNewsItem(draft: PreviewArticleDraft): NewsItem {
     date: draft.publishedAt ?? draft.createdAt,
     summary: draft.summary ?? '',
     content: draft.content ?? '',
-    imageUrl: resolveMediaUrl(draft.coverMediaUrl),
+    imageUrl: normalizePublicMediaUrl(draft.coverMediaUrl),
     tags: [],
-    pdfUrl: resolveMediaUrl(draft.documentUrl),
+    pdfUrl: normalizePublicMediaUrl(draft.documentUrl),
     documentNumber: draft.documentNumber ?? undefined,
     meetingDate: draft.meetingDate ?? undefined,
     year: draft.publicationYear ?? undefined,
@@ -176,16 +172,12 @@ export default async function PreviewPage({ params, searchParams }: PreviewPageP
 
   const draft = payload.draft;
   if (draft.type !== type) {
-    return (
-      <ErrorState message="Jeton non valide pour ce type de contenu." />
-    );
+    return <ErrorState message="Jeton non valide pour ce type de contenu." />;
   }
 
   const expectedId = draft.sourceId ?? 'new';
   if (id !== expectedId) {
-    return (
-      <ErrorState message="Identifiant de prévisualisation invalide pour ce brouillon." />
-    );
+    return <ErrorState message="Identifiant de prévisualisation invalide pour ce brouillon." />;
   }
 
   const banner = <PreviewBanner editPath={draft.editPath} />;
@@ -194,7 +186,12 @@ export default async function PreviewPage({ params, searchParams }: PreviewPageP
     const item = mapPreviewArticleToNewsItem(draft);
     return (
       <div className="pt-10">
-        <ArticleDetailView item={item} relatedItems={[]} showRelated={false} previewBanner={banner} />
+        <ArticleDetailView
+          item={item}
+          relatedItems={[]}
+          showRelated={false}
+          previewBanner={banner}
+        />
       </div>
     );
   }
@@ -206,7 +203,7 @@ export default async function PreviewPage({ params, searchParams }: PreviewPageP
           title: draft.title,
           description: draft.summary ?? undefined,
           content: draft.content ?? undefined,
-          featuredImage: resolveMediaUrl(draft.coverMediaUrl),
+          featuredImage: normalizePublicMediaUrl(draft.coverMediaUrl),
           location: draft.locationName ?? undefined,
           address: draft.address ?? undefined,
           startDate: draft.startsAt ?? new Date().toISOString(),

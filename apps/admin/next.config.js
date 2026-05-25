@@ -30,6 +30,7 @@ function getRemotePattern(value) {
 
 const apiOrigin = getUrlOrigin(process.env.NEXT_PUBLIC_API_URL);
 const webOrigin = getUrlOrigin(process.env.NEXT_PUBLIC_WEB_URL);
+const mediaOrigin = getUrlOrigin(process.env.NEXT_PUBLIC_MEDIA_URL || process.env.MINIO_PUBLIC_URL);
 const cspConnectSources = Array.from(
   new Set(
     [
@@ -39,6 +40,7 @@ const cspConnectSources = Array.from(
       'ws://localhost:*',
       apiOrigin,
       webOrigin,
+      mediaOrigin,
     ].filter(Boolean),
   ),
 );
@@ -52,6 +54,7 @@ const mediaSources = Array.from(
       'http://localhost:*',
       apiOrigin,
       webOrigin,
+      mediaOrigin,
     ].filter(Boolean),
   ),
 );
@@ -88,7 +91,7 @@ const securityHeaders = [
   },
   {
     key: 'Permissions-Policy',
-    value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()'
+    value: 'camera=(), microphone=(), geolocation=(), interest-cohort=()',
   },
   {
     key: 'Strict-Transport-Security',
@@ -121,6 +124,7 @@ const nextConfig = {
       },
       getRemotePattern(process.env.NEXT_PUBLIC_API_URL),
       getRemotePattern(process.env.NEXT_PUBLIC_WEB_URL),
+      getRemotePattern(process.env.NEXT_PUBLIC_MEDIA_URL || process.env.MINIO_PUBLIC_URL),
     ].filter(Boolean),
   },
   async rewrites() {
